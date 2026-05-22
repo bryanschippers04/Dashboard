@@ -1,0 +1,34 @@
+@import "tailwindcss";
+
+@theme {
+  --font-mono: var(--font-jetbrains), "Courier New", monospace;
+  --color-accent: #22c55e;
+  --color-surface: #080808;
+  --color-card: #111111;
+}
+
+html {
+  background-color: #080808;
+}
+
+body {
+  background-color: #080808;
+  color: #e8e8e8;
+  min-height: 100vh;
+}
+
+::selection {
+  background-color: rgba(34, 197, 94, 0.2);
+  color: #e8e8e8;
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: #080808; }
+::-webkit-scrollbar-thumb { background: #222; border-radius: 2px; }
+
+input,
+textarea,
+button,
+select {
+  font-family: inherit;
+}
