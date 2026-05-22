@@ -36,7 +36,7 @@ export default function JournalForm() {
     const recognition = new SR()
     recognition.continuous = true
     recognition.interimResults = false
-    recognition.lang = 'en-US'
+    recognition.lang = 'nl-NL'
 
     recognition.onresult = (event) => {
       let transcript = ''
