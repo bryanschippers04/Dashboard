@@ -36,7 +36,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className={jetbrainsMono.variable}>
-      <body className="font-mono antialiased">{children}</body>
+      <body className="font-mono antialiased overflow-y-auto">{children}</body>
     </html>
   )
 }

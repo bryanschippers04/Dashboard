@@ -22,7 +22,7 @@ export default async function JournalPage() {
   return (
     <div className="min-h-screen bg-[#080808]">
       <TopNav />
-      <main className="pt-10 p-3 md:p-5 max-w-3xl mx-auto">
+      <main className="px-3 pb-3 md:px-5 md:pb-5 max-w-3xl mx-auto" style={{ paddingTop: '3rem' }}>
         {/* Page header */}
         <div className="mb-5">
           <div className="flex items-center gap-2 mb-2">

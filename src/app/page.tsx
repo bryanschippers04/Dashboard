@@ -23,7 +23,7 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen bg-[#080808]">
       <TopNav />
-      <main className="pt-10 p-3 md:p-5">
+      <main className="px-3 pb-3 md:px-5 md:pb-5" style={{ paddingTop: '3rem' }}>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-w-7xl mx-auto">
           <OperatorCard />
           <SessionCard />
