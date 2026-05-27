@@ -5,11 +5,24 @@ import SessionCard from '@/components/SessionCard'
 import Card from '@/components/Card'
 import type { Goal } from '@/components/GoalList'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  const admin = createAdminClient()
 
-  const [{ count: journalCount }, { data: lastEntry }, { data: allTodos }, { data: allGoals }] = await Promise.all([
+  const isoDate = (d: Date) => d.toISOString().slice(0, 10)
+  const sevenDaysAgo = isoDate(new Date(Date.now() - 7 * 86400000))
+
+  const [
+    { count: journalCount },
+    { data: lastEntry },
+    { data: allTodos },
+    { data: allGoals },
+    { data: bankAccountsData },
+    { data: recentTx },
+  ] = await Promise.all([
     supabase
       .from('journal_entries')
       .select('*', { count: 'exact', head: true }),
@@ -25,6 +38,18 @@ export default async function DashboardPage() {
     supabase
       .from('goals')
       .select('id, title, type, target, current_progress'),
+    user
+      ? admin
+          .from('bank_accounts')
+          .select('id, name, iban')
+          .eq('user_id', user.id)
+      : Promise.resolve({ data: [] }),
+    supabase
+      .from('transactions')
+      .select('id, amount, merchant, category, date')
+      .gte('date', sevenDaysAgo)
+      .order('date', { ascending: false })
+      .order('id', { ascending: false }),
   ])
 
   const todos = allTodos ?? []
@@ -55,6 +80,31 @@ export default async function DashboardPage() {
   )
   const goalsOverallPct =
     goalTotalTarget === 0 ? 0 : Math.round((goalTotalProgress / goalTotalTarget) * 100)
+
+  const bankAccounts = (bankAccountsData ?? []) as Array<{ id: string; name: string | null; iban: string | null }>
+  const ownIbans = new Set(
+    bankAccounts
+      .map((a) => a.iban?.replace(/\s+/g, '').toUpperCase())
+      .filter((x): x is string => !!x)
+  )
+  const txRows = (recentTx ?? []) as Array<{
+    id: string
+    amount: number
+    merchant: string | null
+    category: string | null
+    date: string
+  }>
+  const isSelfTransfer = (t: (typeof txRows)[number]) => {
+    if (t.category === 'transfer') return true
+    if (!t.merchant) return false
+    const m = t.merchant.replace(/\s+/g, '').toUpperCase()
+    for (const iban of ownIbans) if (m.includes(iban)) return true
+    return false
+  }
+  const weekSpend = txRows
+    .filter((t) => Number(t.amount) < 0 && !isSelfTransfer(t))
+    .reduce((s, t) => s + Math.abs(Number(t.amount)), 0)
+  const recentForCard = txRows.slice(0, 3)
 
   return (
     <div className="min-h-screen bg-[#050d1c]">
@@ -223,13 +273,86 @@ export default async function DashboardPage() {
             </div>
           </Card>
 
-          {/* Finance — Milestone 4 */}
-          <Card number="06" label="FINANCE PULSE">
-            <div className="opacity-30">
-              <p className="text-[10px] text-zinc-600 tracking-wider mb-1">NET WORTH</p>
-              <p className="text-2xl text-zinc-100">—</p>
-              <p className="text-[10px] text-zinc-700 mt-3">Plaid integration in Milestone 4.</p>
-            </div>
+          {/* Finance */}
+          <Card
+            number="06"
+            label="FINANCE PULSE"
+            action={
+              <Link
+                href="/finance"
+                className="text-[10px] text-zinc-600 hover:text-zinc-300 tracking-widest transition-colors"
+              >
+                OPEN →
+              </Link>
+            }
+          >
+            {bankAccounts.length === 0 ? (
+              <div>
+                <p className="text-[10px] text-zinc-600 tracking-wider mb-1">SPEND · 7D</p>
+                <p className="text-2xl text-zinc-100">—</p>
+                <Link
+                  href="/finance"
+                  className="mt-4 block text-[10px] text-zinc-700 hover:text-accent transition-colors tracking-widest"
+                >
+                  + CONNECT BANK
+                </Link>
+              </div>
+            ) : (
+              <div>
+                <div className="mb-3">
+                  <p className="text-[10px] text-zinc-600 tracking-wider mb-1">SPEND · 7D</p>
+                  <p className="text-2xl text-zinc-100 tabular-nums">
+                    €{' '}
+                    {weekSpend.toLocaleString('nl-NL', {
+                      minimumFractionDigits: 0,
+                      maximumFractionDigits: 0,
+                    })}
+                  </p>
+                </div>
+                {recentForCard.length === 0 ? (
+                  <p className="text-xs text-zinc-700">No transactions yet. Sync to load.</p>
+                ) : (
+                  <div className="space-y-1.5">
+                    {recentForCard.map((t) => {
+                      const transfer = isSelfTransfer(t)
+                      const amount = Number(t.amount)
+                      return (
+                        <div key={t.id} className="flex items-center justify-between gap-2">
+                          <span
+                            className={`text-xs truncate ${
+                              transfer ? 'text-zinc-600' : 'text-zinc-400'
+                            }`}
+                          >
+                            {t.merchant ?? 'Unknown'}
+                          </span>
+                          <span
+                            className={`text-[10px] tabular-nums shrink-0 ${
+                              transfer
+                                ? 'text-zinc-600'
+                                : amount > 0
+                                ? 'text-accent'
+                                : 'text-zinc-500'
+                            }`}
+                          >
+                            {amount < 0 ? '−' : '+'}€
+                            {Math.abs(amount).toLocaleString('nl-NL', {
+                              minimumFractionDigits: 0,
+                              maximumFractionDigits: 0,
+                            })}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+                <Link
+                  href="/finance"
+                  className="mt-4 block text-[10px] text-zinc-700 hover:text-accent transition-colors tracking-widest"
+                >
+                  OPEN FINANCE →
+                </Link>
+              </div>
+            )}
           </Card>
         </div>
       </main>
