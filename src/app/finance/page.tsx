@@ -4,7 +4,7 @@ import FinanceConnect from '@/components/FinanceConnect'
 import FinanceSyncButton from '@/components/FinanceSyncButton'
 import TransactionList, { type Transaction } from '@/components/TransactionList'
 import SpendBarChart, { type DailySpend } from '@/components/SpendBarChart'
-import CategoryBreakdown, { type CategoryTotal } from '@/components/CategoryBreakdown'
+import CategoryBreakdown from '@/components/CategoryBreakdown'
 import ManualAccountsSection, { type ManualAccount } from '@/components/ManualAccountsSection'
 import type { Category } from '@/lib/categorize'
 import { createClient } from '@/lib/supabase/server'
@@ -33,6 +33,7 @@ interface TransactionRow {
   date: string
   counterparty_iban: string | null
   booked_at: string | null
+  provider_sequence: number | null
 }
 
 const isoDate = (d: Date) => d.toISOString().slice(0, 10)
@@ -62,9 +63,13 @@ export default async function FinancePage({
       .eq('user_id', user.id),
     supabase
       .from('transactions')
-      .select('id, amount, merchant, category, date, counterparty_iban, booked_at')
-      .gte('date', isoDate(new Date(Date.now() - 30 * 86400000)))
+      .select(
+        'id, amount, merchant, category, date, counterparty_iban, booked_at, provider_sequence'
+      )
+      // No date filter — category breakdown supports up to ALL-time view.
+      // Other tiles still filter to their own windows in JS.
       .order('booked_at', { ascending: false, nullsFirst: false })
+      .order('provider_sequence', { ascending: true, nullsFirst: false })
       .order('date', { ascending: false })
       .order('id', { ascending: false }),
     admin
@@ -128,7 +133,9 @@ export default async function FinancePage({
     .reduce((s, t) => s + Math.abs(t.amount), 0)
 
   const monthSpend = transactions
-    .filter((t) => t.amount < 0 && !t.is_transfer)
+    .filter(
+      (t) => t.date >= thirtyDaysAgo && t.amount < 0 && !t.is_transfer
+    )
     .reduce((s, t) => s + Math.abs(t.amount), 0)
 
   // Daily spend last 14 days (inclusive of today).
@@ -148,17 +155,14 @@ export default async function FinancePage({
     spend,
   }))
 
-  // Category breakdown for the last 30 days, outflows only, excl. transfers.
-  const categoryMap = new Map<Category, number>()
-  for (const t of transactions) {
-    if (t.amount >= 0 || t.is_transfer) continue
-    if (t.date < thirtyDaysAgo) continue
-    const cat = (t.category as Category) || 'other'
-    categoryMap.set(cat, (categoryMap.get(cat) ?? 0) + Math.abs(t.amount))
-  }
-  const breakdown: CategoryTotal[] = Array.from(categoryMap.entries())
-    .map(([category, total]) => ({ category, total }))
-    .sort((a, b) => b.total - a.total)
+  // Display list: keep to last 30 days so the page doesn't become a wall.
+  const transactionsForList = transactions.filter((t) => t.date >= thirtyDaysAgo)
+
+  // Category breakdown receives ALL transactions (already excludes positive
+  // amounts + transfers internally). Range selector is client-side.
+  const categoryTransactions = transactions.filter(
+    (t) => t.amount < 0 && !t.is_transfer
+  )
 
   const lastSyncedAt = accounts.reduce<string | null>((latest, a) => {
     if (!a.last_synced_at) return latest
@@ -264,16 +268,13 @@ export default async function FinancePage({
               {/* Two-column: breakdown + transactions */}
               <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-3">
                 <div className="border border-slate-800 bg-[#0a1830] px-4 py-4">
-                  <p className="text-[10px] text-zinc-500 tracking-[0.2em] uppercase mb-3">
-                    Category · 30d
-                  </p>
-                  <CategoryBreakdown breakdown={breakdown} />
+                  <CategoryBreakdown transactions={categoryTransactions} />
                 </div>
                 <div className="border border-slate-800 bg-[#0a1830] px-4 py-4">
                   <p className="text-[10px] text-zinc-500 tracking-[0.2em] uppercase mb-3">
                     Transactions · last 30d
                   </p>
-                  <TransactionList transactions={transactions} />
+                  <TransactionList transactions={transactionsForList} />
                 </div>
               </div>
             </>

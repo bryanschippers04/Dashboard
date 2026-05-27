@@ -54,9 +54,12 @@ export default async function DashboardPage() {
       : Promise.resolve({ data: [] }),
     supabase
       .from('transactions')
-      .select('id, amount, merchant, category, date, counterparty_iban, booked_at')
+      .select(
+        'id, amount, merchant, category, date, counterparty_iban, booked_at, provider_sequence'
+      )
       .gte('date', sevenDaysAgo)
       .order('booked_at', { ascending: false, nullsFirst: false })
+      .order('provider_sequence', { ascending: true, nullsFirst: false })
       .order('date', { ascending: false })
       .order('id', { ascending: false }),
     user

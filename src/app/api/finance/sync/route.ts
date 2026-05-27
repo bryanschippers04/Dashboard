@@ -59,7 +59,7 @@ export async function POST() {
       const { transactions } = await getAccountTransactions(account.account_id, dateFrom)
 
       const rows = transactions
-        .map((t) => {
+        .map((t, idx) => {
           const providerId = providerTransactionId(t)
           if (!providerId) return null
           const merchant = describeTransaction(t)
@@ -79,6 +79,7 @@ export async function POST() {
             date,
             booked_at: bookedAt,
             counterparty_iban: counterpartyIban(t),
+            provider_sequence: idx,
             plaid_id: providerId,
           }
         })
