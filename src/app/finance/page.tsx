@@ -9,6 +9,13 @@ import ManualAccountsSection, { type ManualAccount } from '@/components/ManualAc
 import type { Category } from '@/lib/categorize'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import {
+  buildBankIbanSet,
+  derivedBalance,
+  isSelfTransfer,
+  type ManualAccountRef,
+  type TransactionRef,
+} from '@/lib/finance'
 
 interface BankAccountRow {
   id: string
@@ -24,6 +31,8 @@ interface TransactionRow {
   merchant: string | null
   category: string | null
   date: string
+  counterparty_iban: string | null
+  booked_at: string | null
 }
 
 const isoDate = (d: Date) => d.toISOString().slice(0, 10)
@@ -53,47 +62,55 @@ export default async function FinancePage({
       .eq('user_id', user.id),
     supabase
       .from('transactions')
-      .select('id, amount, merchant, category, date')
+      .select('id, amount, merchant, category, date, counterparty_iban, booked_at')
       .gte('date', isoDate(new Date(Date.now() - 30 * 86400000)))
+      .order('booked_at', { ascending: false, nullsFirst: false })
       .order('date', { ascending: false })
       .order('id', { ascending: false }),
     admin
       .from('manual_accounts')
-      .select('id, name, iban, balance, currency, updated_at')
+      .select('id, name, iban, balance, currency, balance_set_at, updated_at')
       .eq('user_id', user.id)
       .order('updated_at', { ascending: false }),
   ])
 
   const accounts = (accountsData ?? []) as BankAccountRow[]
   const allTx = (txData ?? []) as TransactionRow[]
-  const manualAccounts = (manualData ?? []).map((m) => ({
-    ...m,
+  const manualRefs = (manualData ?? []).map((m) => ({
+    id: m.id as string,
+    name: m.name as string,
+    iban: (m.iban as string | null) ?? null,
     balance: Number(m.balance),
-  })) as ManualAccount[]
-  const manualTotal = manualAccounts.reduce((s, m) => s + m.balance, 0)
-  // Net worth = manual balances + (linked balances, when we have them).
-  // Linked balances aren't fetched yet (out of scope from the first finance plan)
-  // so for now net worth = manual total.
-  const netWorth = manualTotal
+    balance_set_at: m.balance_set_at as string,
+  })) satisfies ManualAccountRef[]
 
-  const ownIbans = new Set(
-    accounts
-      .map((a) => a.iban?.replace(/\s+/g, '').toUpperCase())
-      .filter((x): x is string => !!x)
+  // For self-transfer detection we also need the linked-bank IBANs.
+  const bankIbans = buildBankIbanSet(accounts)
+
+  // Net worth = sum of derived balances across manual accounts.
+  // (Linked-account balances are still out of scope until we wire /balances.)
+  const netWorth = manualRefs.reduce(
+    (s, m) => s + derivedBalance(m, allTx as TransactionRef[]),
+    0
   )
+
+  // Manual accounts as passed to the UI: balance replaced with the derived
+  // running total, anchor retained as `_anchor` for the sub-line.
+  const manualAccounts: (ManualAccount & { _anchor: number; _anchorAt: string })[] =
+    manualRefs.map((m) => ({
+      id: m.id,
+      name: m.name,
+      iban: m.iban,
+      balance: derivedBalance(m, allTx as TransactionRef[]),
+      currency: 'EUR',
+      _anchor: m.balance,
+      _anchorAt: m.balance_set_at,
+    }))
 
   const today = startOfDay(new Date())
   const sevenDaysAgo = isoDate(new Date(today.getTime() - 7 * 86400000))
   const fourteenDaysAgo = isoDate(new Date(today.getTime() - 14 * 86400000))
   const thirtyDaysAgo = isoDate(new Date(today.getTime() - 30 * 86400000))
-
-  const isSelfTransfer = (t: TransactionRow): boolean => {
-    if (t.category === 'transfer') return true
-    if (!t.merchant) return false
-    const m = t.merchant.replace(/\s+/g, '').toUpperCase()
-    for (const iban of ownIbans) if (m.includes(iban)) return true
-    return false
-  }
 
   const transactions: Transaction[] = allTx.map((t) => ({
     id: t.id,
@@ -101,7 +118,7 @@ export default async function FinancePage({
     merchant: t.merchant,
     category: t.category,
     date: t.date,
-    is_transfer: isSelfTransfer(t),
+    is_transfer: isSelfTransfer(t as TransactionRef, manualRefs, bankIbans),
   }))
 
   const weekSpend = transactions

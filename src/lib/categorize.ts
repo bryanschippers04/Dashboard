@@ -85,7 +85,9 @@ const KEYWORDS: Record<Exclude<Category, 'other'>, string[]> = {
   ],
   transfer: [
     'tikkie', 'ideal', 'spaarrekening', 'savings',
-    'overboeking naar', 'eigen rekening',
+    'overboeking naar', 'eigen rekening', 'eigen overboeking',
+    'vrij spaargeld', 'naar spaargeld', 'van spaargeld', 'spaargeld',
+    'vermogensbeheer',
   ],
 }
 

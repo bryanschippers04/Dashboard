@@ -45,6 +45,7 @@ export async function POST(request: Request) {
   }
 
   const admin = createAdminClient()
+  const nowIso = new Date().toISOString()
   const { data, error } = await admin
     .from('manual_accounts')
     .insert({
@@ -53,6 +54,7 @@ export async function POST(request: Request) {
       iban: typeof iban === 'string' && iban.trim() ? iban.trim() : null,
       balance: balanceNum,
       currency: typeof currency === 'string' && currency.trim() ? currency.trim() : 'EUR',
+      balance_set_at: nowIso,
     })
     .select()
     .single()
@@ -69,7 +71,8 @@ export async function PATCH(request: Request) {
   const { id, name, iban, balance } = body
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 })
 
-  const update: Record<string, unknown> = { updated_at: new Date().toISOString() }
+  const nowIso = new Date().toISOString()
+  const update: Record<string, unknown> = { updated_at: nowIso }
   if (typeof name === 'string' && name.trim()) update.name = name.trim()
   if (typeof iban === 'string') update.iban = iban.trim() || null
   if (balance !== undefined) {
@@ -78,6 +81,8 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: 'Balance must be a number' }, { status: 400 })
     }
     update.balance = balanceNum
+    // Any balance change resets the anchor — the running tally restarts from now.
+    update.balance_set_at = nowIso
   }
 
   const admin = createAdminClient()

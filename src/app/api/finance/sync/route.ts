@@ -5,6 +5,7 @@ import {
   describeTransaction,
   signedAmount,
   providerTransactionId,
+  counterpartyIban,
 } from '@/lib/enableBanking'
 import { categorizeTransaction } from '@/lib/categorize'
 import { NextResponse } from 'next/server'
@@ -66,12 +67,18 @@ export async function POST() {
           const category = categorizeTransaction({ merchant, remittance })
           const date =
             t.booking_date ?? t.value_date ?? t.transaction_date ?? null
+          const bookedAt =
+            t.transaction_date ??
+            (t.booking_date ? `${t.booking_date}T12:00:00Z` : null) ??
+            (t.value_date ? `${t.value_date}T12:00:00Z` : null)
           return {
             user_id: user.id,
             amount: signedAmount(t),
             merchant,
             category,
             date,
+            booked_at: bookedAt,
+            counterparty_iban: counterpartyIban(t),
             plaid_id: providerId,
           }
         })

@@ -6,6 +6,13 @@ import Card from '@/components/Card'
 import type { Goal } from '@/components/GoalList'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import {
+  buildBankIbanSet,
+  derivedBalance,
+  isSelfTransfer,
+  type ManualAccountRef,
+  type TransactionRef,
+} from '@/lib/finance'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -47,14 +54,15 @@ export default async function DashboardPage() {
       : Promise.resolve({ data: [] }),
     supabase
       .from('transactions')
-      .select('id, amount, merchant, category, date')
+      .select('id, amount, merchant, category, date, counterparty_iban, booked_at')
       .gte('date', sevenDaysAgo)
+      .order('booked_at', { ascending: false, nullsFirst: false })
       .order('date', { ascending: false })
       .order('id', { ascending: false }),
     user
       ? admin
           .from('manual_accounts')
-          .select('balance')
+          .select('id, name, iban, balance, balance_set_at')
           .eq('user_id', user.id)
       : Promise.resolve({ data: [] }),
   ])
@@ -89,32 +97,48 @@ export default async function DashboardPage() {
     goalTotalTarget === 0 ? 0 : Math.round((goalTotalProgress / goalTotalTarget) * 100)
 
   const bankAccounts = (bankAccountsData ?? []) as Array<{ id: string; name: string | null; iban: string | null }>
-  const ownIbans = new Set(
-    bankAccounts
-      .map((a) => a.iban?.replace(/\s+/g, '').toUpperCase())
-      .filter((x): x is string => !!x)
-  )
+  const bankIbans = buildBankIbanSet(bankAccounts)
+
   const txRows = (recentTx ?? []) as Array<{
     id: string
     amount: number
     merchant: string | null
     category: string | null
     date: string
+    counterparty_iban: string | null
+    booked_at: string | null
   }>
-  const isSelfTransfer = (t: (typeof txRows)[number]) => {
-    if (t.category === 'transfer') return true
-    if (!t.merchant) return false
-    const m = t.merchant.replace(/\s+/g, '').toUpperCase()
-    for (const iban of ownIbans) if (m.includes(iban)) return true
-    return false
-  }
+
+  const manualRefs = ((manualData ?? []) as Array<{
+    id: string
+    name: string
+    iban: string | null
+    balance: number
+    balance_set_at: string
+  }>).map((m) => ({
+    id: m.id,
+    name: m.name,
+    iban: m.iban,
+    balance: Number(m.balance),
+    balance_set_at: m.balance_set_at,
+  })) satisfies ManualAccountRef[]
+
+  const transactionRefs = txRows as TransactionRef[]
+
   const weekSpend = txRows
-    .filter((t) => Number(t.amount) < 0 && !isSelfTransfer(t))
+    .filter(
+      (t) =>
+        Number(t.amount) < 0 &&
+        !isSelfTransfer(t as TransactionRef, manualRefs, bankIbans)
+    )
     .reduce((s, t) => s + Math.abs(Number(t.amount)), 0)
   const recentForCard = txRows.slice(0, 3)
-  const manualBalances = (manualData ?? []) as Array<{ balance: number }>
-  const netWorth = manualBalances.reduce((s, m) => s + Number(m.balance), 0)
-  const hasFinance = bankAccounts.length > 0 || manualBalances.length > 0
+
+  const netWorth = manualRefs.reduce(
+    (s, m) => s + derivedBalance(m, transactionRefs),
+    0
+  )
+  const hasFinance = bankAccounts.length > 0 || manualRefs.length > 0
 
   return (
     <div className="min-h-screen bg-[#050d1c]">
@@ -337,7 +361,7 @@ export default async function DashboardPage() {
                 ) : (
                   <div className="space-y-1.5">
                     {recentForCard.map((t) => {
-                      const transfer = isSelfTransfer(t)
+                      const transfer = isSelfTransfer(t as TransactionRef, manualRefs, bankIbans)
                       const amount = Number(t.amount)
                       return (
                         <div key={t.id} className="flex items-center justify-between gap-2">

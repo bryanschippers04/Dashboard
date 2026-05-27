@@ -8,8 +8,12 @@ export interface ManualAccount {
   id: string
   name: string
   iban: string | null
+  /** Displayed balance — derived (anchor + transfers since balance_set_at). */
   balance: number
   currency: string | null
+  /** Optional: the raw anchor the user last set. */
+  _anchor?: number
+  _anchorAt?: string
 }
 
 function fmt(n: number): string {
@@ -107,6 +111,17 @@ function ViewRow({
     onDeleted()
   }
 
+  const hasDelta =
+    account._anchor !== undefined &&
+    Math.abs(account.balance - account._anchor) >= 0.005
+  const delta = account._anchor !== undefined ? account.balance - account._anchor : 0
+  const anchorDate = account._anchorAt
+    ? new Date(account._anchorAt).toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+      })
+    : null
+
   return (
     <li className="group flex items-center gap-3 border border-slate-800 bg-[#0a1830] px-3 py-2.5">
       <div className="flex-1 min-w-0">
@@ -117,9 +132,18 @@ function ViewRow({
           </p>
         )}
       </div>
-      <span className="text-sm text-zinc-100 tabular-nums shrink-0">
-        {fmt(account.balance)}
-      </span>
+      <div className="text-right shrink-0">
+        <p className="text-sm text-zinc-100 tabular-nums">{fmt(account.balance)}</p>
+        {hasDelta && anchorDate && (
+          <p className="text-[10px] text-zinc-600 tabular-nums tracking-wider">
+            {delta >= 0 ? '+' : '−'}€{Math.abs(delta).toLocaleString('nl-NL', {
+              minimumFractionDigits: 0,
+              maximumFractionDigits: 0,
+            })}{' '}
+            since {anchorDate}
+          </p>
+        )}
+      </div>
       <div className="flex items-center gap-1 shrink-0">
         <button
           type="button"
