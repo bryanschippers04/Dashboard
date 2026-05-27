@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Check, Pencil, X } from 'lucide-react'
+import { Check, Pencil, Trash2, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import type { RecurringFrequency } from '@/lib/finance'
 
@@ -111,7 +111,7 @@ function ViewRow({
           className="w-5 h-5 text-zinc-600 hover:text-red-400 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
           aria-label="Delete"
         >
-          <X size={11} />
+          <Trash2 size={11} />
         </button>
       </div>
     </div>

@@ -52,15 +52,16 @@ export default function VasteLastenPanel({
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-3">
+      <div className="mb-4">
         <p className="text-[10px] text-zinc-500 tracking-[0.2em] uppercase">
           Vaste lasten
         </p>
-        <div className="text-right">
-          <p className="text-[10px] text-accent tabular-nums">
-            {fmt(monthlyTotal)} <span className="text-zinc-600">/MO</span>
-          </p>
-        </div>
+        <p className="text-2xl text-zinc-100 tabular-nums mt-2">
+          {fmt(monthlyTotal)}{' '}
+          <span className="text-[10px] text-zinc-600 tracking-wider align-middle">
+            /MO
+          </span>
+        </p>
       </div>
 
       {totalCount === 0 ? (

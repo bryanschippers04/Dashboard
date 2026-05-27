@@ -198,6 +198,13 @@ export function detectRecurring(
     )
     if (!band) continue
 
+    // Drop if the last occurrence is older than one period + a small buffer —
+    // the subscription was probably cancelled. band.maxDays already encodes
+    // (period + ~5 day buffer).
+    const lastSeenDay = days[days.length - 1]
+    const lastSeenMs = new Date(lastSeenDay + 'T00:00:00Z').getTime()
+    if (Date.now() - lastSeenMs > band.maxDays * 86400000) continue
+
     // Pick a representative merchant string (the most recent transaction's).
     const sorted = [...txs].sort((a, b) =>
       (a.date ?? '').localeCompare(b.date ?? '')
