@@ -22,6 +22,7 @@ export default async function DashboardPage() {
     { data: allGoals },
     { data: bankAccountsData },
     { data: recentTx },
+    { data: manualData },
   ] = await Promise.all([
     supabase
       .from('journal_entries')
@@ -50,6 +51,12 @@ export default async function DashboardPage() {
       .gte('date', sevenDaysAgo)
       .order('date', { ascending: false })
       .order('id', { ascending: false }),
+    user
+      ? admin
+          .from('manual_accounts')
+          .select('balance')
+          .eq('user_id', user.id)
+      : Promise.resolve({ data: [] }),
   ])
 
   const todos = allTodos ?? []
@@ -105,6 +112,9 @@ export default async function DashboardPage() {
     .filter((t) => Number(t.amount) < 0 && !isSelfTransfer(t))
     .reduce((s, t) => s + Math.abs(Number(t.amount)), 0)
   const recentForCard = txRows.slice(0, 3)
+  const manualBalances = (manualData ?? []) as Array<{ balance: number }>
+  const netWorth = manualBalances.reduce((s, m) => s + Number(m.balance), 0)
+  const hasFinance = bankAccounts.length > 0 || manualBalances.length > 0
 
   return (
     <div className="min-h-screen bg-[#050d1c]">
@@ -286,9 +296,9 @@ export default async function DashboardPage() {
               </Link>
             }
           >
-            {bankAccounts.length === 0 ? (
+            {!hasFinance ? (
               <div>
-                <p className="text-[10px] text-zinc-600 tracking-wider mb-1">SPEND · 7D</p>
+                <p className="text-[10px] text-zinc-600 tracking-wider mb-1">NET WORTH</p>
                 <p className="text-2xl text-zinc-100">—</p>
                 <Link
                   href="/finance"
@@ -300,17 +310,30 @@ export default async function DashboardPage() {
             ) : (
               <div>
                 <div className="mb-3">
-                  <p className="text-[10px] text-zinc-600 tracking-wider mb-1">SPEND · 7D</p>
+                  <p className="text-[10px] text-zinc-600 tracking-wider mb-1">NET WORTH</p>
                   <p className="text-2xl text-zinc-100 tabular-nums">
                     €{' '}
-                    {weekSpend.toLocaleString('nl-NL', {
+                    {netWorth.toLocaleString('nl-NL', {
                       minimumFractionDigits: 0,
                       maximumFractionDigits: 0,
                     })}
                   </p>
+                  {bankAccounts.length > 0 && (
+                    <p className="text-[10px] text-zinc-600 mt-1 tracking-wider">
+                      SPEND · 7D €{' '}
+                      {weekSpend.toLocaleString('nl-NL', {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0,
+                      })}
+                    </p>
+                  )}
                 </div>
                 {recentForCard.length === 0 ? (
-                  <p className="text-xs text-zinc-700">No transactions yet. Sync to load.</p>
+                  <p className="text-xs text-zinc-700">
+                    {bankAccounts.length === 0
+                      ? 'Connect a bank to see transactions.'
+                      : 'No transactions yet. Sync to load.'}
+                  </p>
                 ) : (
                   <div className="space-y-1.5">
                     {recentForCard.map((t) => {

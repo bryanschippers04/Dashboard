@@ -5,6 +5,7 @@ import FinanceSyncButton from '@/components/FinanceSyncButton'
 import TransactionList, { type Transaction } from '@/components/TransactionList'
 import SpendBarChart, { type DailySpend } from '@/components/SpendBarChart'
 import CategoryBreakdown, { type CategoryTotal } from '@/components/CategoryBreakdown'
+import ManualAccountsSection, { type ManualAccount } from '@/components/ManualAccountsSection'
 import type { Category } from '@/lib/categorize'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -45,7 +46,7 @@ export default async function FinancePage({
   const params = await searchParams
   const admin = createAdminClient()
 
-  const [{ data: accountsData }, { data: txData }] = await Promise.all([
+  const [{ data: accountsData }, { data: txData }, { data: manualData }] = await Promise.all([
     admin
       .from('bank_accounts')
       .select('id, name, iban, currency, last_synced_at')
@@ -56,10 +57,24 @@ export default async function FinancePage({
       .gte('date', isoDate(new Date(Date.now() - 30 * 86400000)))
       .order('date', { ascending: false })
       .order('id', { ascending: false }),
+    admin
+      .from('manual_accounts')
+      .select('id, name, iban, balance, currency, updated_at')
+      .eq('user_id', user.id)
+      .order('updated_at', { ascending: false }),
   ])
 
   const accounts = (accountsData ?? []) as BankAccountRow[]
   const allTx = (txData ?? []) as TransactionRow[]
+  const manualAccounts = (manualData ?? []).map((m) => ({
+    ...m,
+    balance: Number(m.balance),
+  })) as ManualAccount[]
+  const manualTotal = manualAccounts.reduce((s, m) => s + m.balance, 0)
+  // Net worth = manual balances + (linked balances, when we have them).
+  // Linked balances aren't fetched yet (out of scope from the first finance plan)
+  // so for now net worth = manual total.
+  const netWorth = manualTotal
 
   const ownIbans = new Set(
     accounts
@@ -167,68 +182,86 @@ export default async function FinancePage({
           </div>
         )}
 
-        {accounts.length === 0 ? (
-          <FinanceConnect />
-        ) : (
-          <div className="flex flex-col gap-5">
-            {/* Linked accounts strip + sync */}
-            <div className="border border-slate-800 bg-[#0a1830] px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
-              <div className="flex flex-col gap-1">
-                <p className="text-[10px] text-zinc-500 tracking-[0.2em] uppercase">
-                  Linked accounts
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  {accounts.map((a) => (
-                    <div key={a.id} className="text-xs text-zinc-300">
-                      {a.name ?? 'Account'}{' '}
-                      {a.iban && (
-                        <span className="text-zinc-600 tabular-nums ml-1">
-                          {a.iban.replace(/(.{4})/g, '$1 ').trim()}
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <FinanceSyncButton lastSyncedAt={lastSyncedAt} />
-            </div>
-
-            {/* Summary tiles */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <SummaryTile label="Week spend" amount={weekSpend} hint="Last 7 days" />
-              <SummaryTile label="Month spend" amount={monthSpend} hint="Last 30 days" />
-            </div>
-
-            {/* Bar chart */}
+        <div className="flex flex-col gap-5">
+          {/* Net worth + manual accounts always visible */}
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-3">
+            <SummaryTile
+              label="Net worth"
+              amount={netWorth}
+              hint={
+                manualAccounts.length === 0
+                  ? 'Add a manual account to start tracking.'
+                  : `${manualAccounts.length} manual account${manualAccounts.length === 1 ? '' : 's'}`
+              }
+            />
             <div className="border border-slate-800 bg-[#0a1830] px-4 py-4">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-[10px] text-zinc-500 tracking-[0.2em] uppercase">
-                  Daily spend · 14d
-                </p>
-                <p className="text-[10px] text-zinc-600 tracking-wider">
-                  Excludes transfers
-                </p>
-              </div>
-              <SpendBarChart daily={daily} />
-            </div>
-
-            {/* Two-column: breakdown + transactions */}
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-3">
-              <div className="border border-slate-800 bg-[#0a1830] px-4 py-4">
-                <p className="text-[10px] text-zinc-500 tracking-[0.2em] uppercase mb-3">
-                  Category · 30d
-                </p>
-                <CategoryBreakdown breakdown={breakdown} />
-              </div>
-              <div className="border border-slate-800 bg-[#0a1830] px-4 py-4">
-                <p className="text-[10px] text-zinc-500 tracking-[0.2em] uppercase mb-3">
-                  Transactions · last 30d
-                </p>
-                <TransactionList transactions={transactions} />
-              </div>
+              <ManualAccountsSection accounts={manualAccounts} />
             </div>
           </div>
-        )}
+
+          {accounts.length === 0 ? (
+            <FinanceConnect />
+          ) : (
+            <>
+              {/* Linked accounts strip + sync */}
+              <div className="border border-slate-800 bg-[#0a1830] px-4 py-3 flex items-center justify-between gap-4 flex-wrap">
+                <div className="flex flex-col gap-1">
+                  <p className="text-[10px] text-zinc-500 tracking-[0.2em] uppercase">
+                    Linked accounts
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    {accounts.map((a) => (
+                      <div key={a.id} className="text-xs text-zinc-300">
+                        {a.name ?? 'Account'}{' '}
+                        {a.iban && (
+                          <span className="text-zinc-600 tabular-nums ml-1">
+                            {a.iban.replace(/(.{4})/g, '$1 ').trim()}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <FinanceSyncButton lastSyncedAt={lastSyncedAt} />
+              </div>
+
+              {/* Summary tiles */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <SummaryTile label="Week spend" amount={weekSpend} hint="Last 7 days" />
+                <SummaryTile label="Month spend" amount={monthSpend} hint="Last 30 days" />
+              </div>
+
+              {/* Bar chart */}
+              <div className="border border-slate-800 bg-[#0a1830] px-4 py-4">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-[10px] text-zinc-500 tracking-[0.2em] uppercase">
+                    Daily spend · 14d
+                  </p>
+                  <p className="text-[10px] text-zinc-600 tracking-wider">
+                    Excludes transfers
+                  </p>
+                </div>
+                <SpendBarChart daily={daily} />
+              </div>
+
+              {/* Two-column: breakdown + transactions */}
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-3">
+                <div className="border border-slate-800 bg-[#0a1830] px-4 py-4">
+                  <p className="text-[10px] text-zinc-500 tracking-[0.2em] uppercase mb-3">
+                    Category · 30d
+                  </p>
+                  <CategoryBreakdown breakdown={breakdown} />
+                </div>
+                <div className="border border-slate-800 bg-[#0a1830] px-4 py-4">
+                  <p className="text-[10px] text-zinc-500 tracking-[0.2em] uppercase mb-3">
+                    Transactions · last 30d
+                  </p>
+                  <TransactionList transactions={transactions} />
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </main>
     </div>
   )
