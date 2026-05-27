@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/server'
 export default async function DashboardPage() {
   const supabase = await createClient()
 
-  const [{ count: journalCount }, { data: lastEntry }] = await Promise.all([
+  const [{ count: journalCount }, { data: lastEntry }, { data: allTodos }] = await Promise.all([
     supabase
       .from('journal_entries')
       .select('*', { count: 'exact', head: true }),
@@ -18,7 +18,22 @@ export default async function DashboardPage() {
       .order('timestamp', { ascending: false })
       .limit(1)
       .maybeSingle(),
+    supabase
+      .from('todos')
+      .select('id, title, completed, due_date'),
   ])
+
+  const todos = allTodos ?? []
+  const openTodos = todos
+    .filter((t) => !t.completed)
+    .sort((a, b) => {
+      if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date)
+      if (a.due_date) return -1
+      if (b.due_date) return 1
+      return 0
+    })
+    .slice(0, 3)
+  const todoPct = todos.length === 0 ? 0 : Math.round((todos.filter((t) => t.completed).length / todos.length) * 100)
 
   return (
     <div className="min-h-screen bg-[#050d1c]">
@@ -74,18 +89,53 @@ export default async function DashboardPage() {
             </div>
           </Card>
 
-          {/* Tasks — Milestone 2 */}
-          <Card number="04" label="TODAY · KEY">
-            <div className="space-y-2">
-              <p className="text-[10px] text-zinc-700">Tasks coming in Milestone 2.</p>
-              <div className="mt-3 space-y-2 opacity-30">
-                {['Push next product update', 'Review analytics', 'Weekly review'].map((t) => (
-                  <div key={t} className="flex items-center gap-2">
-                    <div className="w-3 h-3 border border-zinc-700" />
-                    <span className="text-xs text-zinc-500">{t}</span>
-                  </div>
-                ))}
+          {/* Tasks */}
+          <Card
+            number="04"
+            label="TODAY · KEY"
+            action={
+              <Link
+                href="/todos"
+                className="text-[10px] text-zinc-600 hover:text-zinc-300 tracking-widest transition-colors"
+              >
+                OPEN →
+              </Link>
+            }
+          >
+            <div>
+              <div className="flex items-baseline justify-between mb-3">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl text-zinc-100 tabular-nums">
+                    {todos.filter((t) => !t.completed).length}
+                  </span>
+                  <span className="text-[10px] text-zinc-600">OPEN</span>
+                </div>
+                {todos.length > 0 && (
+                  <span className="text-[10px] text-accent tabular-nums">{todoPct}%</span>
+                )}
               </div>
+
+              {openTodos.length === 0 ? (
+                <p className="text-xs text-zinc-700">
+                  {todos.length === 0 ? 'Add your first todo.' : 'All done. Nice.'}
+                </p>
+              ) : (
+                <div className="space-y-1.5">
+                  {openTodos.map((t) => (
+                    <div key={t.id} className="flex items-center gap-2">
+                      <div className="w-3 h-3 border border-slate-700 shrink-0" />
+                      <span className="text-xs text-zinc-400 truncate">{t.title}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <Link
+                href="/todos"
+                className="mt-4 block text-[10px] text-zinc-700 hover:text-accent transition-colors tracking-widest"
+              >
+                + NEW TODO
+              </Link>
             </div>
           </Card>
 

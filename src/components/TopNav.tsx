@@ -7,9 +7,7 @@ import Clock from './Clock'
 const navItems = [
   { href: '/', label: 'HOME' },
   { href: '/journal', label: 'JOURNAL' },
-  { href: '/goals', label: 'GOALS' },
-  { href: '/finance', label: 'FINANCE' },
-  { href: '/health', label: 'HEALTH' },
+  { href: '/todos', label: 'TODOS' },
 ]
 
 export default function TopNav() {
