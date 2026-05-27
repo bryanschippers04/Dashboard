@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { runAndStoreWeekly } from '@/lib/insightsServer'
+import { runAndStoreDaily } from '@/lib/insightsServer'
 
 export const maxDuration = 60
 
@@ -12,11 +12,11 @@ export async function POST() {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   try {
-    const result = await runAndStoreWeekly(user.id)
+    const result = await runAndStoreDaily(user.id)
     return NextResponse.json(result)
   } catch (e) {
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : 'Weekly run failed' },
+      { error: e instanceof Error ? e.message : 'Daily run failed' },
       { status: 502 }
     )
   }

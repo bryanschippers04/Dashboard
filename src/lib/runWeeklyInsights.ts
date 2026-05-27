@@ -1,6 +1,6 @@
 // Ties everything together: takes a week of raw data, builds the
-// payload, calls Claude, and returns a clean array of insight objects
-// ready to insert into the `insights` table.
+// payload, calls Claude, and returns insights + a 2-sentence distillation
+// ready to insert into the `insights` and `insight_summaries` tables.
 //
 // Pure-ish: this function does NOT fetch from Supabase or Google.
 // The caller (a cron route) is responsible for gathering data and
@@ -19,25 +19,47 @@ export interface Insight {
   verse?: { ref: string; text: string }
 }
 
-export async function runWeeklyInsights(input: AggregateWeekArgs): Promise<Insight[]> {
+export interface WeeklyResult {
+  insights: Insight[]
+  distillation: string | null
+}
+
+export async function runWeeklyInsights(
+  input: AggregateWeekArgs
+): Promise<WeeklyResult> {
   const payload = aggregateWeek(input)
   const userMessage = JSON.stringify(payload, null, 2)
 
-  const insights = await callClaudeJSON<unknown>({
+  const raw = await callClaudeJSON<unknown>({
     system: WEEKLY_INSIGHTS_SYSTEM_PROMPT,
-    user: userMessage
+    user: userMessage,
   })
 
-  return validateInsights(insights)
+  return validateWeeklyResponse(raw)
 }
 
-// Makes sure Claude returned the shape we expect. Drops anything weird
-// instead of crashing the whole run.
-function validateInsights(value: unknown): Insight[] {
-  if (!Array.isArray(value)) {
-    throw new Error('Expected an array of insights')
+function validateWeeklyResponse(value: unknown): WeeklyResult {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error('Expected an object { insights, distillation }')
+  }
+  const obj = value as Record<string, unknown>
+
+  if (!Array.isArray(obj.insights)) {
+    throw new Error('Missing or invalid `insights` array')
   }
 
+  const insights = validateInsightArray(obj.insights)
+
+  let distillation: string | null = null
+  if (typeof obj.distillation === 'string') {
+    const trimmed = obj.distillation.trim()
+    if (trimmed) distillation = trimmed.slice(0, 500)
+  }
+
+  return { insights, distillation }
+}
+
+export function validateInsightArray(value: unknown[]): Insight[] {
   const allowedTypes = new Set<InsightType>(['pattern', 'action', 'win', 'warning'])
   const cleaned: Insight[] = []
 
@@ -51,7 +73,7 @@ function validateInsights(value: unknown): Insight[] {
     const out: Insight = {
       type: i.type as InsightType,
       title: i.title.trim(),
-      body: i.body.trim()
+      body: i.body.trim(),
     }
 
     if (i.verse && typeof i.verse === 'object') {

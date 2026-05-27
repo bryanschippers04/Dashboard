@@ -18,12 +18,12 @@ Built and shipped on Vercel:
 \- Day 1: Next.js scaffold \+ Supabase \+ email/password auth ✅  
 \- Day 2: Voice journal (Dutch by default, Web Speech API) ✅  
 \- Day 3: Todos \+ Goals (full CRUD, home cards) ✅  
-\- Day 4: Finance \- Enable Banking integration (Rabobank), manual accounts (savings), Vaste Lasten recurring panel (auto-detect \+ manual) ✅
+\- Day 4: Finance \- Enable Banking integration (Rabobank), manual accounts (savings), Vaste Lasten recurring panel (auto-detect \+ manual) ✅  
+\- Day 7: Claude insights — weekly (auto via Sunday 22:00 UTC cron \+ manual button) \+ daily on demand \+ starred library \+ per-week distillations as long-term memory ✅
 
 Not built yet:
 \- Day 5: Gmail \+ Google Calendar  
-\- Day 6: Screen time tracking  
-\- Day 7: Claude weekly insights (lib scaffolding is committed under \`src/lib/\`)
+\- Day 6: Screen time tracking
 
 \---
 
@@ -39,8 +39,9 @@ All RLS enabled. Service-role-only tables have no client policies; the server us
 6\. \`bank\_accounts\` \- id, user\_id, plaid\_item\_id (FK), account\_id, name, iban, currency, last\_synced\_at. One row per linked bank account under a consent. **RLS: service-role only.**  
 7\. \`manual\_accounts\` \- id, user\_id, name, iban, balance (anchor), currency, balance\_set\_at, updated\_at. For savings / cash buckets not linked via API. Displayed balance is derived: anchor \+ sum of matching transfers since balance\_set\_at. **RLS: service-role only.**  
 8\. \`recurring\_expenses\` \- id, user\_id, name, amount, currency, frequency (weekly/monthly/quarterly/yearly), source, active. Manual entries for Vaste Lasten panel; auto-detected items are computed at read time. **RLS: service-role only.**  
-9\. \`insights\` \- id, user\_id, content, insight\_type, generated\_at. Not yet used (Day 7).  
-10\. \`screen\_time\` \- id, user\_id, duration\_minutes, app\_name, date. Not yet used (Day 6).
+9\. \`insights\` \- id, user\_id, insight\_type (pattern/action/win/warning), title, body, content (legacy), verse (jsonb), scope (weekly/daily), week\_start (date, weekly only), day (date, daily only), is\_starred (bool), generated\_at. **RLS: client SELECT-only (writes via service role).** Starred rows are pinned into every future Claude run as canonical memory.  
+10\. \`insight\_summaries\` \- id, user\_id, week\_start, summary, created\_at. One row per week — a ~2-sentence broken-English distillation of that week's insights, auto-generated alongside each weekly run. Fed into all future runs as long-term memory. Unique on (user\_id, week\_start). **RLS: service-role only.**  
+11\. \`screen\_time\` \- id, user\_id, duration\_minutes, app\_name, date. Not yet used (Day 6).
 
 Note: there is no \`public.users\` table. Foreign keys point at \`auth.users\` directly.
 
@@ -56,9 +57,12 @@ Finance \- callback: GET /api/finance/callback (handles redirect from bank conse
 Finance \- sync: POST /api/finance/sync (pulls last 90d transactions per linked account)  
 Finance \- manual accounts: GET/POST/PATCH/DELETE /api/finance/manual-accounts  
 Finance \- recurring: GET/POST/PATCH/DELETE /api/finance/recurring  
+Insights \- weekly run (manual): POST /api/insights/run  
+Insights \- daily run (manual): POST /api/insights/daily  
+Insights \- cron (Vercel-only): GET/POST /api/insights/cron (Bearer-auth via CRON\_SECRET; reads owner from INSIGHTS\_OWNER\_USER\_ID)  
+Insights \- per-row: PATCH/DELETE /api/insights/\[id\] (PATCH body \`{ is\_starred: boolean }\`)  
 Gmail: not yet built  
-Calendar: not yet built  
-Insights: not yet built
+Calendar: not yet built
 
 \---
 
@@ -68,6 +72,8 @@ NEXT\_PUBLIC\_SUPABASE\_URL
 NEXT\_PUBLIC\_SUPABASE\_ANON\_KEY  
 SUPABASE\_SECRET\_KEY (renamed from SUPABASE\_SERVICE\_ROLE\_KEY when migrating to the new Supabase key system)  
 ANTHROPIC\_API\_KEY  
+CRON\_SECRET (random 32+ char string; Vercel adds \`Authorization: Bearer\` on cron requests, the cron route checks this)  
+INSIGHTS\_OWNER\_USER\_ID (this user's UUID from auth.users; the cron has no session, so it picks the owner via env)  
 ENABLE\_BANKING\_APP\_ID  
 ENABLE\_BANKING\_PRIVATE\_KEY (full multi-line PEM; in Vercel paste raw, in .env.local wrap in double quotes)  
 GMAIL\_CLIENT\_ID (later)  
@@ -84,16 +90,28 @@ GOOGLE\_CALENDAR\_API\_KEY (later)
 \- /todos       to-do CRUD \+ progress  
 \- /goals       three sections (daily/weekly/monthly) with \+/− quick increment  
 \- /finance     transactions, week/month spend tiles, 14-day bar chart, category breakdown (7d/30d/6mo/1y/all switcher), manual accounts, vaste lasten panel  
+\- /insights    starred library at top, weekly groups below with per-week distillation and daily insights interleaved; manual generate buttons for daily \+ weekly  
 \- /privacy     boilerplate for Enable Banking compliance  
 \- /terms       same
 
 \---
 
-\#\# Claude Integration (Day 7 \- not yet wired)
+\#\# Claude Integration (Day 7 — wired)
 
-Lib scaffolding under \`src/lib/\`: \`aggregateWeek.ts\`, \`claudeClient.ts\`, \`copy.ts\`, \`dateRange.ts\`, \`moodTags.ts\`, \`runWeeklyInsights.ts\`, \`weeklyInsightsPrompt.ts\`. Design specs under \`docs/superpowers/specs/\`.
+Lib layout under \`src/lib/\`:
+\- \`weeklyInsightsPrompt.ts\` / \`dailyInsightsPrompt.ts\` — system prompts
+\- \`aggregateWeek.ts\` / \`aggregateDay.ts\` — payload builders, share a \`buildMemory()\` helper for the memory block
+\- \`runWeeklyInsights.ts\` / \`runDailyInsights.ts\` — pure orchestrators (aggregate → Claude → validate)
+\- \`claudeClient.ts\` — Anthropic API wrapper, defaults to \`claude-sonnet-4-6\`
+\- \`insightsServer.ts\` — server-only DB-gathering \+ insert logic; the helpers \`runAndStoreWeekly(userId)\` / \`runAndStoreDaily(userId)\` are called by every API route
+\- \`dateRange.ts\` — \`getLastWeekRange\`, \`getYesterdayRange\`
 
-Plan: weekly job aggregates journal entries \+ transactions \+ goal progress, calls Claude, stores results in \`insights\` table, displays on home.
+Weekly Claude call returns \`{ insights, distillation }\`. Insights go into \`public.insights\` (\`scope='weekly'\`, \`week_start\` set). The distillation goes into \`public.insight_summaries\` (one row per week, upsert). Daily Claude call returns just an array of insights — \`scope='daily'\`, \`day\` set, no verse.
+
+Memory layers fed into every run, all pulled in \`getInsightsMemory()\`:
+1. all starred insights (no limit)
+2. all weekly distillations (no limit)
+3. last 15 unstarred insights for short-term context
 
 \---
 

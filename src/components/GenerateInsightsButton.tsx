@@ -3,17 +3,41 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 
-export default function GenerateInsightsButton() {
+export type InsightKind = 'weekly' | 'daily'
+
+const CONFIG: Record<
+  InsightKind,
+  { endpoint: string; label: string; busyLabel: string }
+> = {
+  weekly: {
+    endpoint: '/api/insights/run',
+    label: '+ WEEKLY (LAST MON–SUN)',
+    busyLabel: 'GENERATING WEEK…',
+  },
+  daily: {
+    endpoint: '/api/insights/daily',
+    label: '+ DAILY (YESTERDAY)',
+    busyLabel: 'GENERATING DAY…',
+  },
+}
+
+export default function GenerateInsightsButton({
+  kind = 'weekly',
+}: {
+  kind?: InsightKind
+}) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [, startTransition] = useTransition()
 
+  const cfg = CONFIG[kind]
+
   async function run() {
     setBusy(true)
     setError('')
     try {
-      const res = await fetch('/api/insights/run', { method: 'POST' })
+      const res = await fetch(cfg.endpoint, { method: 'POST' })
       const data = await res.json()
       if (!res.ok) {
         setError(data.error || 'Failed')
@@ -36,7 +60,7 @@ export default function GenerateInsightsButton() {
         disabled={busy}
         className="border border-accent text-accent text-[10px] tracking-[0.2em] px-3 py-2 hover:bg-accent/10 transition-colors disabled:opacity-40"
       >
-        {busy ? 'GENERATING…' : '+ GENERATE LAST WEEK'}
+        {busy ? cfg.busyLabel : cfg.label}
       </button>
       {error && <span className="text-[10px] text-red-400">{error}</span>}
     </div>

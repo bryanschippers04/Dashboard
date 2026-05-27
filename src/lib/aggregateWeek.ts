@@ -45,11 +45,25 @@ export interface CalendarEventInput {
   summary?: string
 }
 
-export interface LastInsightInput {
+export interface MemoryInsightInput {
   insight_type: string
-  content?: string | null
   title?: string | null
   body?: string | null
+  content?: string | null
+  week_start?: string | null
+  day?: string | null
+  scope?: string | null
+}
+
+export interface MemoryDistillationInput {
+  week_start: string
+  summary: string
+}
+
+export interface MemoryInput {
+  starred?: MemoryInsightInput[]
+  distillations?: MemoryDistillationInput[]
+  recent?: MemoryInsightInput[]
 }
 
 export interface AggregateWeekArgs {
@@ -60,7 +74,7 @@ export interface AggregateWeekArgs {
   screenTime?: ScreenTimeInput[]
   goals?: GoalInput[]
   calendarEvents?: CalendarEventInput[]
-  lastWeekInsights?: LastInsightInput[]
+  memory?: MemoryInput
 }
 
 // --- Output shape ---
@@ -92,7 +106,11 @@ export interface WeekPayload {
     percent: number | null
   }>
   calendar: Array<{ date: string | null; title: string }>
-  last_week_insights: Array<{ type: string; content: string }>
+  memory: {
+    starred: Array<{ type: string; title: string; body: string }>
+    distillations: Array<{ week_start: string; summary: string }>
+    recent: Array<{ type: string; title: string; body: string; when: string | null }>
+  }
 }
 
 export function aggregateWeek({
@@ -103,7 +121,7 @@ export function aggregateWeek({
   screenTime = [],
   goals = [],
   calendarEvents = [],
-  lastWeekInsights = []
+  memory = {}
 }: AggregateWeekArgs): WeekPayload {
   return {
     week: {
@@ -115,7 +133,33 @@ export function aggregateWeek({
     screen_time: buildScreenTime(screenTime),
     goals: buildGoals(goals),
     calendar: buildCalendar(calendarEvents),
-    last_week_insights: buildLastWeekInsights(lastWeekInsights)
+    memory: buildMemory(memory)
+  }
+}
+
+export function buildMemory(memory: MemoryInput) {
+  return {
+    starred: (memory.starred ?? []).map(toMemoryInsight),
+    distillations: (memory.distillations ?? []).map((d) => ({
+      week_start: d.week_start,
+      summary: d.summary,
+    })),
+    recent: (memory.recent ?? []).map((i) => ({
+      ...toMemoryInsight(i),
+      when: i.day ?? i.week_start ?? null,
+    })),
+  }
+}
+
+function toMemoryInsight(i: MemoryInsightInput) {
+  const title = i.title?.trim() ?? ''
+  const body = i.body?.trim() ?? ''
+  // Older rows used `content` only. Fall back so memory still works.
+  const fallback = i.content?.trim() ?? ''
+  return {
+    type: i.insight_type,
+    title: title || fallback,
+    body: title ? body : '',
   }
 }
 
@@ -197,15 +241,6 @@ function buildCalendar(events: CalendarEventInput[]) {
   return events.map(e => ({
     date: dateOnly(e.start ?? e.date ?? null),
     title: e.title ?? e.summary ?? ''
-  }))
-}
-
-function buildLastWeekInsights(insights: LastInsightInput[]) {
-  return insights.map(i => ({
-    type: i.insight_type,
-    // Prefer body+title if available (new schema), else fall back to content.
-    content:
-      i.title && i.body ? `${i.title} — ${i.body}` : (i.content ?? '')
   }))
 }
 
