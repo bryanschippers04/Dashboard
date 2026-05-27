@@ -3,7 +3,7 @@
 \#\# Project Overview  
 Personal Life/Business Dashboard \- all-in-one app for journaling, finances, goals, and AI insights.
 
-Stack: React \+ Supabase \+ Claude API \+ Plaid  
+Stack: React \+ Supabase \+ Claude API \+ GoCardless Bank Account Data  
 Timeline: 1 week MVP  
 Goal: Functional, not beautiful
 
@@ -15,10 +15,10 @@ Goal: Functional, not beautiful
 2\. journal\_entries \- id, user\_id, text, timestamp, rating (0-10), mood\_tags, language  
 3\. todos \- id, user\_id, title, completed, due\_date  
 4\. goals \- id, user\_id, title, type (daily/weekly/monthly), target, current\_progress  
-5\. transactions \- id, user\_id, amount, category, merchant, date, plaid\_id  
+5\. transactions \- id, user\_id, amount, category, merchant, date, provider\_id (was plaid\_id — kept name for now, treated as opaque provider transaction id)  
 6\. insights \- id, user\_id, content, insight\_type, generated\_at  
 7\. screen\_time \- id, user\_id, duration\_minutes, app\_name, date  
-8\. plaid\_items \- id, user\_id, access\_token, item\_id, institution\_name
+8\. plaid\_items \- id, user\_id, access\_token, item\_id, institution\_name (table name retained; stores GoCardless requisition + agreement data — token field is treated as the GoCardless access token, item\_id as the requisition id)
 
 \---
 
@@ -28,7 +28,7 @@ Goal: Functional, not beautiful
 2\. Voice Journal \- Record voice, auto-transcribed (Web Speech API)  
 3\. To-Do List \- Add, check off, completion %  
 4\. Goals Tracker \- Daily/weekly/monthly with progress bars  
-5\. Finance Dashboard \- Plaid shows Rabobank spending  
+5\. Finance Dashboard \- GoCardless Bank Account Data shows Rabobank spending  
 6\. Calendar \- Google Calendar events  
 7\. Email \- Gmail important emails  
 8\. Screen Time \- Track usage  
@@ -42,7 +42,7 @@ Goal: Functional, not beautiful
 Journal: POST/GET/DELETE /api/journal  
 Todos: POST/GET/PATCH/DELETE /api/todos  
 Goals: POST/GET/PATCH/DELETE /api/goals  
-Plaid: POST /api/plaid-link, GET /api/plaid/transactions  
+Finance: POST /api/finance/connect (creates GoCardless requisition), GET /api/finance/callback, POST /api/finance/sync, GET /api/finance/transactions  
 Gmail: GET /api/gmail  
 Calendar: GET /api/calendar  
 Insights: POST /api/insights, GET /api/insights
@@ -54,8 +54,8 @@ Insights: POST /api/insights, GET /api/insights
 NEXT\_PUBLIC\_SUPABASE\_URL  
 NEXT\_PUBLIC\_SUPABASE\_ANON\_KEY  
 SUPABASE\_SERVICE\_ROLE\_KEY  
-NEXT\_PUBLIC\_PLAID\_CLIENT\_ID  
-PLAID\_SECRET  
+GOCARDLESS\_SECRET\_ID  
+GOCARDLESS\_SECRET\_KEY  
 ANTHROPIC\_API\_KEY  
 GMAIL\_CLIENT\_ID  
 GMAIL\_CLIENT\_SECRET  
@@ -69,7 +69,7 @@ Dashboard.jsx \- Main hub
 Journal.jsx \- Voice recording  
 TodoList.jsx \- To-do CRUD  
 GoalsTracker.jsx \- Goal progress  
-FinanceDashboard.jsx \- Plaid spending  
+FinanceDashboard.jsx \- GoCardless / Rabobank spending  
 CalendarView.jsx \- Google Calendar  
 EmailWidget.jsx \- Gmail  
 InsightsPanel.jsx \- Claude insights
@@ -81,7 +81,7 @@ InsightsPanel.jsx \- Claude insights
 Day 1: React setup \+ Supabase \+ auth  
 Day 2: Voice journal  
 Day 3: To-do list \+ goals  
-Day 4: Plaid (Rabobank)  
+Day 4: GoCardless Bank Account Data (Rabobank)  
 Day 5: Gmail \+ Google Calendar  
 Day 6: Screen time tracking  
 Day 7: Claude insights \+ polish
@@ -106,7 +106,7 @@ Store in Supabase, display on dashboard
 
 Web app (not mobile native) \- Faster, responsive  
 Supabase (not Firebase) \- Better structured data  
-Plaid (not direct API) \- Simpler  
+GoCardless Bank Account Data (not Plaid, not direct Rabobank API) \- Free for personal use, EU-PSD2-native, 730-day transaction history, Rabobank supported. Plaid would also work but is paid for production and US-first; direct Rabobank API requires AISP licensing.  
 Web Speech API (not Whisper) \- Free  
 Claude (not GPT-4) \- Better pattern reasoning  
 Vercel (not self-hosted) \- Free tier
