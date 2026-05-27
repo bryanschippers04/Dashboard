@@ -6,6 +6,7 @@ import TransactionList, { type Transaction } from '@/components/TransactionList'
 import SpendBarChart, { type DailySpend } from '@/components/SpendBarChart'
 import CategoryBreakdown from '@/components/CategoryBreakdown'
 import ManualAccountsSection, { type ManualAccount } from '@/components/ManualAccountsSection'
+import VasteLastenPanel from '@/components/VasteLastenPanel'
 import type { Category } from '@/lib/categorize'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -56,7 +57,12 @@ export default async function FinancePage({
   const params = await searchParams
   const admin = createAdminClient()
 
-  const [{ data: accountsData }, { data: txData }, { data: manualData }] = await Promise.all([
+  const [
+    { data: accountsData },
+    { data: txData },
+    { data: manualData },
+    { data: recurringData },
+  ] = await Promise.all([
     admin
       .from('bank_accounts')
       .select('id, name, iban, currency, last_synced_at')
@@ -77,6 +83,11 @@ export default async function FinancePage({
       .select('id, name, iban, balance, currency, balance_set_at, updated_at')
       .eq('user_id', user.id)
       .order('updated_at', { ascending: false }),
+    admin
+      .from('recurring_expenses')
+      .select('id, name, amount, frequency, source, active')
+      .eq('user_id', user.id)
+      .order('amount', { ascending: false }),
   ])
 
   const accounts = (accountsData ?? []) as BankAccountRow[]
@@ -91,6 +102,19 @@ export default async function FinancePage({
 
   // For self-transfer detection we also need the linked-bank IBANs.
   const bankIbans = buildBankIbanSet(accounts)
+
+  // Manual recurring entries from /api/finance/recurring.
+  const recurringEntries = ((recurringData ?? []) as Array<{
+    id: string
+    name: string
+    amount: number
+    frequency: 'weekly' | 'monthly' | 'quarterly' | 'yearly'
+    source: string | null
+    active: boolean
+  }>).map((r) => ({
+    ...r,
+    amount: Number(r.amount),
+  }))
 
   // Net worth = sum of derived balances across manual accounts.
   // (Linked-account balances are still out of scope until we wire /balances.)
@@ -173,7 +197,7 @@ export default async function FinancePage({
   return (
     <div className="min-h-screen bg-[#050d1c]">
       <TopNav />
-      <main className="px-3 pb-12 md:px-5 max-w-4xl mx-auto" style={{ paddingTop: '3rem' }}>
+      <main className="px-3 pb-12 md:px-5 max-w-6xl mx-auto" style={{ paddingTop: '3rem' }}>
         {/* Page header */}
         <div className="mb-5">
           <div className="flex items-center gap-2 mb-2">
@@ -265,8 +289,8 @@ export default async function FinancePage({
                 <SpendBarChart daily={daily} />
               </div>
 
-              {/* Two-column: breakdown + transactions */}
-              <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr] gap-3">
+              {/* Three-column bottom: breakdown · transactions · vaste lasten */}
+              <div className="grid grid-cols-1 lg:grid-cols-[1fr_2fr_1fr] gap-3">
                 <div className="border border-slate-800 bg-[#0a1830] px-4 py-4">
                   <CategoryBreakdown transactions={categoryTransactions} />
                 </div>
@@ -275,6 +299,12 @@ export default async function FinancePage({
                     Transactions · last 30d
                   </p>
                   <TransactionList transactions={transactionsForList} />
+                </div>
+                <div className="border border-slate-800 bg-[#0a1830] px-4 py-4">
+                  <VasteLastenPanel
+                    transactions={allTx as TransactionRef[]}
+                    manualEntries={recurringEntries}
+                  />
                 </div>
               </div>
             </>
