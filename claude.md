@@ -3,37 +3,46 @@
 \#\# Project Overview  
 Personal Life/Business Dashboard \- all-in-one app for journaling, finances, goals, and AI insights.
 
-Stack: React \+ Supabase \+ Claude API \+ GoCardless Bank Account Data  
+Stack: Next.js (App Router) \+ Supabase \+ Claude API \+ Enable Banking  
+Hosting: Vercel  
+Repo: github.com/bryanschippers04/Dashboard  
+Live: dashboard-beryl-five-45.vercel.app  
 Timeline: 1 week MVP  
 Goal: Functional, not beautiful
 
 \---
 
-\#\# Database Tables (Supabase)
+\#\# Status (2026-05-28)
 
-1\. users \- id, email, created\_at  
-2\. journal\_entries \- id, user\_id, text, timestamp, rating (0-10), mood\_tags, language  
-3\. todos \- id, user\_id, title, completed, due\_date  
-4\. goals \- id, user\_id, title, type (daily/weekly/monthly), target, current\_progress  
-5\. transactions \- id, user\_id, amount, category, merchant, date, provider\_id (was plaid\_id — kept name for now, treated as opaque provider transaction id)  
-6\. insights \- id, user\_id, content, insight\_type, generated\_at  
-7\. screen\_time \- id, user\_id, duration\_minutes, app\_name, date  
-8\. plaid\_items \- id, user\_id, access\_token, item\_id, institution\_name (table name retained; stores GoCardless requisition + agreement data — token field is treated as the GoCardless access token, item\_id as the requisition id)
+Built and shipped on Vercel:
+\- Day 1: Next.js scaffold \+ Supabase \+ email/password auth ✅  
+\- Day 2: Voice journal (Dutch by default, Web Speech API) ✅  
+\- Day 3: Todos \+ Goals (full CRUD, home cards) ✅  
+\- Day 4: Finance \- Enable Banking integration (Rabobank), manual accounts (savings), Vaste Lasten recurring panel (auto-detect \+ manual) ✅
+
+Not built yet:
+\- Day 5: Gmail \+ Google Calendar  
+\- Day 6: Screen time tracking  
+\- Day 7: Claude weekly insights (lib scaffolding is committed under \`src/lib/\`)
 
 \---
 
-\#\# Core Features (MVP)
+\#\# Database Tables (Supabase)
 
-1\. Dashboard Home \- Daily overview, quick stats  
-2\. Voice Journal \- Record voice, auto-transcribed (Web Speech API)  
-3\. To-Do List \- Add, check off, completion %  
-4\. Goals Tracker \- Daily/weekly/monthly with progress bars  
-5\. Finance Dashboard \- GoCardless Bank Account Data shows Rabobank spending  
-6\. Calendar \- Google Calendar events  
-7\. Email \- Gmail important emails  
-8\. Screen Time \- Track usage  
-9\. Claude AI Insights \- Weekly analysis \+ recommendations  
-10\. Auth \- Email/password login
+All RLS enabled. Service-role-only tables have no client policies; the server uses \`src/lib/supabase/admin.ts\`.
+
+1\. \`journal\_entries\` \- id, user\_id, text, timestamp, rating (0-10), mood\_tags\[\], language, audio\_url  
+2\. \`todos\` \- id, user\_id, title, completed, due\_date  
+3\. \`goals\` \- id, user\_id, title, type (daily/weekly/monthly), target, current\_progress  
+4\. \`transactions\` \- id, user\_id, amount, category, merchant, date, plaid\_id (unique \- treated as opaque provider transaction id), booked\_at, created\_at, counterparty\_iban, provider\_sequence. **RLS: client SELECT-only, server writes via service role.**  
+5\. \`plaid\_items\` \- id, user\_id, access\_token, item\_id, institution\_name. Table name retained from the initial scaffold; now stores Enable Banking session metadata (item\_id \= session\_id, access\_token \= JSON of session info). **RLS: service-role only (no client policies).**  
+6\. \`bank\_accounts\` \- id, user\_id, plaid\_item\_id (FK), account\_id, name, iban, currency, last\_synced\_at. One row per linked bank account under a consent. **RLS: service-role only.**  
+7\. \`manual\_accounts\` \- id, user\_id, name, iban, balance (anchor), currency, balance\_set\_at, updated\_at. For savings / cash buckets not linked via API. Displayed balance is derived: anchor \+ sum of matching transfers since balance\_set\_at. **RLS: service-role only.**  
+8\. \`recurring\_expenses\` \- id, user\_id, name, amount, currency, frequency (weekly/monthly/quarterly/yearly), source, active. Manual entries for Vaste Lasten panel; auto-detected items are computed at read time. **RLS: service-role only.**  
+9\. \`insights\` \- id, user\_id, content, insight\_type, generated\_at. Not yet used (Day 7).  
+10\. \`screen\_time\` \- id, user\_id, duration\_minutes, app\_name, date. Not yet used (Day 6).
+
+Note: there is no \`public.users\` table. Foreign keys point at \`auth.users\` directly.
 
 \---
 
@@ -42,10 +51,14 @@ Goal: Functional, not beautiful
 Journal: POST/GET/DELETE /api/journal  
 Todos: POST/GET/PATCH/DELETE /api/todos  
 Goals: POST/GET/PATCH/DELETE /api/goals  
-Finance: POST /api/finance/connect (creates GoCardless requisition), GET /api/finance/callback, POST /api/finance/sync, GET /api/finance/transactions  
-Gmail: GET /api/gmail  
-Calendar: GET /api/calendar  
-Insights: POST /api/insights, GET /api/insights
+Finance \- connect: POST /api/finance/connect (starts Enable Banking authorisation)  
+Finance \- callback: GET /api/finance/callback (handles redirect from bank consent)  
+Finance \- sync: POST /api/finance/sync (pulls last 90d transactions per linked account)  
+Finance \- manual accounts: GET/POST/PATCH/DELETE /api/finance/manual-accounts  
+Finance \- recurring: GET/POST/PATCH/DELETE /api/finance/recurring  
+Gmail: not yet built  
+Calendar: not yet built  
+Insights: not yet built
 
 \---
 
@@ -53,70 +66,54 @@ Insights: POST /api/insights, GET /api/insights
 
 NEXT\_PUBLIC\_SUPABASE\_URL  
 NEXT\_PUBLIC\_SUPABASE\_ANON\_KEY  
-SUPABASE\_SERVICE\_ROLE\_KEY  
-GOCARDLESS\_SECRET\_ID  
-GOCARDLESS\_SECRET\_KEY  
+SUPABASE\_SECRET\_KEY (renamed from SUPABASE\_SERVICE\_ROLE\_KEY when migrating to the new Supabase key system)  
 ANTHROPIC\_API\_KEY  
-GMAIL\_CLIENT\_ID  
-GMAIL\_CLIENT\_SECRET  
-GOOGLE\_CALENDAR\_API\_KEY
+ENABLE\_BANKING\_APP\_ID  
+ENABLE\_BANKING\_PRIVATE\_KEY (full multi-line PEM; in Vercel paste raw, in .env.local wrap in double quotes)  
+GMAIL\_CLIENT\_ID (later)  
+GMAIL\_CLIENT\_SECRET (later)  
+GOOGLE\_CALENDAR\_API\_KEY (later)
 
 \---
 
-\#\# Components to Build
+\#\# Pages (built)
 
-Dashboard.jsx \- Main hub  
-Journal.jsx \- Voice recording  
-TodoList.jsx \- To-do CRUD  
-GoalsTracker.jsx \- Goal progress  
-FinanceDashboard.jsx \- GoCardless / Rabobank spending  
-CalendarView.jsx \- Google Calendar  
-EmailWidget.jsx \- Gmail  
-InsightsPanel.jsx \- Claude insights
-
-\---
-
-\#\# Build Timeline (Days 1-7)
-
-Day 1: React setup \+ Supabase \+ auth  
-Day 2: Voice journal  
-Day 3: To-do list \+ goals  
-Day 4: GoCardless Bank Account Data (Rabobank)  
-Day 5: Gmail \+ Google Calendar  
-Day 6: Screen time tracking  
-Day 7: Claude insights \+ polish
+\- /            home dashboard (Operator, Session, Journal, Today, Goals, Finance Pulse cards)  
+\- /login       email/password sign-in / sign-up  
+\- /journal     voice journal entries  
+\- /todos       to-do CRUD \+ progress  
+\- /goals       three sections (daily/weekly/monthly) with \+/− quick increment  
+\- /finance     transactions, week/month spend tiles, 14-day bar chart, category breakdown (7d/30d/6mo/1y/all switcher), manual accounts, vaste lasten panel  
+\- /privacy     boilerplate for Enable Banking compliance  
+\- /terms       same
 
 \---
 
-\#\# Claude Integration
+\#\# Claude Integration (Day 7 \- not yet wired)
 
-Call Claude weekly with:  
-\- Journal entries  
-\- Spending data  
-\- Screen time  
-\- Goals completion  
-\- Calendar info
+Lib scaffolding under \`src/lib/\`: \`aggregateWeek.ts\`, \`claudeClient.ts\`, \`copy.ts\`, \`dateRange.ts\`, \`moodTags.ts\`, \`runWeeklyInsights.ts\`, \`weeklyInsightsPrompt.ts\`. Design specs under \`docs/superpowers/specs/\`.
 
-Claude returns patterns, insights, recommendations  
-Store in Supabase, display on dashboard
+Plan: weekly job aggregates journal entries \+ transactions \+ goal progress, calls Claude, stores results in \`insights\` table, displays on home.
 
 \---
 
 \#\# Key Decisions
 
-Web app (not mobile native) \- Faster, responsive  
-Supabase (not Firebase) \- Better structured data  
-GoCardless Bank Account Data (not Plaid, not direct Rabobank API) \- Free for personal use, EU-PSD2-native, 730-day transaction history, Rabobank supported. Plaid would also work but is paid for production and US-first; direct Rabobank API requires AISP licensing.  
-Web Speech API (not Whisper) \- Free  
-Claude (not GPT-4) \- Better pattern reasoning  
-Vercel (not self-hosted) \- Free tier
+\- Web app (not mobile native) \- Faster, responsive  
+\- Supabase (not Firebase) \- Better structured data  
+\- Enable Banking (not Plaid, not GoCardless, not direct Rabobank API) \- Plaid charges in EU and free trial is US/Canada only. GoCardless Bank Account Data disabled new signups in July 2025. Direct Rabobank PSD2 API requires AISP licensing. Enable Banking is open for solo dev personal-use signups, covers Rabobank, RS256 JWT auth.  
+\- Web Speech API (not Whisper) \- Free, works for Dutch  
+\- Claude (not GPT-4) \- Better pattern reasoning  
+\- Vercel (not self-hosted) \- Free tier  
+\- Multi-account from day one in the bank-link code path \- linking a second bank later (Revolut, etc.) requires no code change.  
+\- Manual-account balances are *derived*, not stored \- the \`balance\` field is the anchor the user last set; the displayed value is anchor \+ matching transfers since \`balance\_set\_at\`. Avoids double-application headaches on re-sync.
 
 \---
 
 \#\# Next Phases
 
-Phase 2: UI polish, desktop screen time, charts, PDF  
-Phase 3: Mobile app, dark mode, habit streaks
+Phase 2: UI polish (colors, hover effects, micro-animations), desktop screen time, charts, PDF exports  
+Phase 3: Mobile app, dark/light variants, habit streaks, recurring next-due-date prediction
 
 \---
 
@@ -125,6 +122,6 @@ Phase 3: Mobile app, dark mode, habit streaks
 \- One user only  
 \- Functionality first  
 \- Free tier services only  
-\- Test on real phone  
 \- Use Git  
 \- Privacy: user's Supabase only  
+\- All schema changes go through dated migration files in \`supabase/\` and are applied manually via Supabase SQL Editor. No automated migration runner.
