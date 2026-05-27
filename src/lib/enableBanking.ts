@@ -67,12 +67,36 @@ export interface EBTransaction {
 
 let cached: { token: string; exp: number } | null = null
 
+function normalizePem(raw: string): string {
+  let key = raw.trim()
+  // Strip a single pair of surrounding double or single quotes if present.
+  if (
+    (key.startsWith('"') && key.endsWith('"')) ||
+    (key.startsWith("'") && key.endsWith("'"))
+  ) {
+    key = key.slice(1, -1)
+  }
+  // Convert literal \n into real newlines (Vercel UI sometimes stores them this way).
+  if (key.includes('\\n')) {
+    key = key.replace(/\\n/g, '\n')
+  }
+  return key
+}
+
 function getJwt(): string {
   const appId = process.env.ENABLE_BANKING_APP_ID
-  const privateKey = process.env.ENABLE_BANKING_PRIVATE_KEY
-  if (!appId || !privateKey) {
+  const rawKey = process.env.ENABLE_BANKING_PRIVATE_KEY
+  if (!appId || !rawKey) {
     throw new Error(
       'ENABLE_BANKING_APP_ID or ENABLE_BANKING_PRIVATE_KEY env var missing'
+    )
+  }
+  const privateKey = normalizePem(rawKey)
+  if (!privateKey.includes('BEGIN') || !privateKey.includes('PRIVATE KEY')) {
+    throw new Error(
+      'ENABLE_BANKING_PRIVATE_KEY does not look like a PEM key. ' +
+        'Make sure the value includes the -----BEGIN PRIVATE KEY----- and ' +
+        '-----END PRIVATE KEY----- markers with real newlines between lines.'
     )
   }
 
