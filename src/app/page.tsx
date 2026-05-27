@@ -3,12 +3,13 @@ import TopNav from '@/components/TopNav'
 import OperatorCard from '@/components/OperatorCard'
 import SessionCard from '@/components/SessionCard'
 import Card from '@/components/Card'
+import type { Goal } from '@/components/GoalList'
 import { createClient } from '@/lib/supabase/server'
 
 export default async function DashboardPage() {
   const supabase = await createClient()
 
-  const [{ count: journalCount }, { data: lastEntry }, { data: allTodos }] = await Promise.all([
+  const [{ count: journalCount }, { data: lastEntry }, { data: allTodos }, { data: allGoals }] = await Promise.all([
     supabase
       .from('journal_entries')
       .select('*', { count: 'exact', head: true }),
@@ -21,6 +22,9 @@ export default async function DashboardPage() {
     supabase
       .from('todos')
       .select('id, title, completed, due_date'),
+    supabase
+      .from('goals')
+      .select('id, title, type, target, current_progress'),
   ])
 
   const todos = allTodos ?? []
@@ -34,6 +38,23 @@ export default async function DashboardPage() {
     })
     .slice(0, 3)
   const todoPct = todos.length === 0 ? 0 : Math.round((todos.filter((t) => t.completed).length / todos.length) * 100)
+
+  const goals = (allGoals ?? []) as Goal[]
+  const goalPct = (g: Goal) => (g.target > 0 ? (g.current_progress / g.target) * 100 : 0)
+  // Home card sort: MOST-progressed first (celebratory).
+  // Note: the /goals page sorts the opposite way (least first, action-oriented).
+  const activeGoals = goals
+    .filter((g) => g.target > 0 && g.current_progress < g.target)
+    .sort((a, b) => goalPct(b) - goalPct(a))
+    .slice(0, 3)
+  const validGoals = goals.filter((g) => g.target > 0)
+  const goalTotalTarget = validGoals.reduce((s, g) => s + g.target, 0)
+  const goalTotalProgress = validGoals.reduce(
+    (s, g) => s + Math.min(g.current_progress, g.target),
+    0
+  )
+  const goalsOverallPct =
+    goalTotalTarget === 0 ? 0 : Math.round((goalTotalProgress / goalTotalTarget) * 100)
 
   return (
     <div className="min-h-screen bg-[#050d1c]">
@@ -139,16 +160,66 @@ export default async function DashboardPage() {
             </div>
           </Card>
 
-          {/* Goals — Milestone 2 */}
-          <Card number="05" label="GOALS">
-            <div className="space-y-3 opacity-30">
-              <div>
-                <p className="text-[10px] text-zinc-600 tracking-wider mb-2">THIS WEEK</p>
-                <div className="h-0.5 bg-slate-800 relative">
-                  <div className="absolute left-0 top-0 h-full bg-accent w-1/3" />
+          {/* Goals */}
+          <Card
+            number="05"
+            label="GOALS"
+            action={
+              <Link
+                href="/goals"
+                className="text-[10px] text-zinc-600 hover:text-zinc-300 tracking-widest transition-colors"
+              >
+                OPEN →
+              </Link>
+            }
+          >
+            <div>
+              <div className="flex items-baseline justify-between mb-3">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl text-zinc-100 tabular-nums">
+                    {activeGoals.length}
+                  </span>
+                  <span className="text-[10px] text-zinc-600">ACTIVE</span>
                 </div>
+                {goals.length > 0 && (
+                  <span className="text-[10px] text-accent tabular-nums">{goalsOverallPct}%</span>
+                )}
               </div>
-              <p className="text-[10px] text-zinc-700">Goals coming in Milestone 2.</p>
+
+              {goals.length === 0 ? (
+                <p className="text-xs text-zinc-700">Add your first goal.</p>
+              ) : activeGoals.length === 0 ? (
+                <p className="text-xs text-emerald-400">All goals reached.</p>
+              ) : (
+                <div className="space-y-2.5">
+                  {activeGoals.map((g) => {
+                    const pct = Math.min(100, goalPct(g))
+                    return (
+                      <div key={g.id}>
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="text-xs text-zinc-400 truncate">{g.title}</span>
+                          <span className="text-[10px] text-zinc-500 tabular-nums shrink-0">
+                            {g.current_progress}/{g.target}
+                          </span>
+                        </div>
+                        <div className="h-0.5 bg-slate-800 relative overflow-hidden">
+                          <div
+                            className="absolute left-0 top-0 h-full bg-accent transition-all duration-300"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              <Link
+                href="/goals"
+                className="mt-4 block text-[10px] text-zinc-700 hover:text-accent transition-colors tracking-widest"
+              >
+                + NEW GOAL
+              </Link>
             </div>
           </Card>
 
