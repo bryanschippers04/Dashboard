@@ -33,7 +33,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#080808] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#050d1c] flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="mb-8">
           <p className="text-[10px] text-zinc-600 tracking-[0.3em] uppercase mb-3">
@@ -53,7 +53,7 @@ export default function LoginPage() {
             placeholder="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="bg-[#111] border border-zinc-800 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-700 focus:outline-none focus:border-zinc-600 w-full transition-colors"
+            className="bg-[#0a1830] border border-slate-800 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-700 focus:outline-none focus:border-zinc-600 w-full transition-colors"
             required
           />
           <input
@@ -61,7 +61,7 @@ export default function LoginPage() {
             placeholder="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="bg-[#111] border border-zinc-800 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-700 focus:outline-none focus:border-zinc-600 w-full transition-colors"
+            className="bg-[#0a1830] border border-slate-800 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-700 focus:outline-none focus:border-zinc-600 w-full transition-colors"
             required
             minLength={6}
           />
@@ -73,7 +73,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="mt-1 bg-accent text-[#080808] text-[11px] py-3 px-4 font-medium tracking-[0.2em] uppercase hover:opacity-90 transition-opacity disabled:opacity-40"
+            className="mt-1 bg-accent text-[#050d1c] text-[11px] py-3 px-4 font-medium tracking-[0.2em] uppercase hover:opacity-90 transition-opacity disabled:opacity-40"
           >
             {loading ? '...' : isSignUp ? 'CREATE ACCOUNT' : 'ENTER'}
           </button>

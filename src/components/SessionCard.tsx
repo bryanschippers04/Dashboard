@@ -40,7 +40,7 @@ export default function SessionCard() {
         )}
       </div>
 
-      <div className="mt-4 flex items-center gap-2 border border-zinc-800 bg-[#080808] px-3 py-2">
+      <div className="mt-4 flex items-center gap-2 border border-slate-800 bg-[#050d1c] px-3 py-2">
         <span className="text-[10px] text-zinc-700">⌘</span>
         <input
           type="text"

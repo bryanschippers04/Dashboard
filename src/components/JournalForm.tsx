@@ -99,9 +99,9 @@ export default function JournalForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="border border-zinc-800 bg-[#111]">
+    <form onSubmit={handleSubmit} className="border border-slate-800 bg-[#0a1830]">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-800">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-800">
         <p className="text-[10px] text-zinc-600 tracking-[0.2em] uppercase">New Entry</p>
         <button
           type="button"
@@ -109,7 +109,7 @@ export default function JournalForm() {
           className={`flex items-center gap-1.5 text-[10px] tracking-widest px-3 py-1.5 border transition-colors ${
             isRecording
               ? 'border-accent text-accent bg-accent/10'
-              : 'border-zinc-700 text-zinc-500 hover:border-zinc-500 hover:text-zinc-300'
+              : 'border-slate-700 text-zinc-500 hover:border-zinc-500 hover:text-zinc-300'
           }`}
         >
           {isRecording ? <MicOff size={10} /> : <Mic size={10} />}
@@ -119,7 +119,7 @@ export default function JournalForm() {
 
       {/* Recording indicator */}
       {isRecording && (
-        <div className="px-4 py-2 border-b border-zinc-800 bg-accent/5 flex items-center gap-2">
+        <div className="px-4 py-2 border-b border-slate-800 bg-accent/5 flex items-center gap-2">
           <div className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
           <p className="text-[10px] text-accent tracking-wider">RECORDING — speak now</p>
         </div>
@@ -134,7 +134,7 @@ export default function JournalForm() {
         className="w-full bg-transparent px-4 py-4 text-sm text-zinc-200 placeholder-zinc-700 focus:outline-none resize-none leading-relaxed"
       />
 
-      <div className="px-4 pb-4 space-y-4 border-t border-zinc-800 pt-4">
+      <div className="px-4 pb-4 space-y-4 border-t border-slate-800 pt-4">
         {/* Rating */}
         <div>
           <p className="text-[10px] text-zinc-600 tracking-widest mb-2 uppercase">Mood Rating</p>
@@ -147,7 +147,7 @@ export default function JournalForm() {
                 className={`w-7 h-7 text-[10px] border transition-colors ${
                   rating === i
                     ? 'border-accent text-accent bg-accent/10'
-                    : 'border-zinc-800 text-zinc-600 hover:border-zinc-600 hover:text-zinc-400'
+                    : 'border-slate-800 text-zinc-600 hover:border-zinc-600 hover:text-zinc-400'
                 }`}
               >
                 {i}
@@ -168,7 +168,7 @@ export default function JournalForm() {
                 className={`text-[10px] px-2.5 py-1 border transition-colors tracking-wider ${
                   selectedTags.includes(tag)
                     ? 'border-accent text-accent bg-accent/10'
-                    : 'border-zinc-800 text-zinc-600 hover:border-zinc-600 hover:text-zinc-400'
+                    : 'border-slate-800 text-zinc-600 hover:border-zinc-600 hover:text-zinc-400'
                 }`}
               >
                 {tag}
@@ -183,7 +183,7 @@ export default function JournalForm() {
           <button
             type="submit"
             disabled={!text.trim() || isSubmitting}
-            className="flex items-center gap-2 text-[10px] tracking-widest bg-accent text-[#080808] px-4 py-2.5 font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
+            className="flex items-center gap-2 text-[10px] tracking-widest bg-accent text-[#050d1c] px-4 py-2.5 font-medium hover:opacity-90 transition-opacity disabled:opacity-40"
           >
             <Send size={10} />
             {isSubmitting ? 'SAVING...' : 'SAVE ENTRY'}

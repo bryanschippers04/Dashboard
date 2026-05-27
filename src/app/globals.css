@@ -2,29 +2,33 @@
 
 @theme {
   --font-mono: var(--font-jetbrains), "Courier New", monospace;
-  --color-accent: #22c55e;
-  --color-surface: #080808;
-  --color-card: #111111;
+  --color-accent: #22d3ee;
+  --color-surface: #050d1c;
+  --color-card: #0a1830;
 }
 
 html {
-  background-color: #080808;
+  background-color: #050d1c;
 }
 
 body {
-  background-color: #080808;
-  color: #e8e8e8;
+  color: #d8e1ef;
   min-height: 100vh;
+  background-color: #050d1c;
+  background-image:
+    radial-gradient(ellipse 80% 60% at 80% 0%, rgba(34, 211, 238, 0.06), transparent 60%),
+    radial-gradient(ellipse 100% 80% at 20% 100%, rgba(14, 165, 233, 0.05), transparent 60%);
+  background-attachment: fixed;
 }
 
 ::selection {
-  background-color: rgba(34, 197, 94, 0.2);
-  color: #e8e8e8;
+  background-color: rgba(34, 211, 238, 0.25);
+  color: #ffffff;
 }
 
 ::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: #080808; }
-::-webkit-scrollbar-thumb { background: #222; border-radius: 2px; }
+::-webkit-scrollbar-track { background: #050d1c; }
+::-webkit-scrollbar-thumb { background: #1e3a5f; border-radius: 2px; }
 
 input,
 textarea,

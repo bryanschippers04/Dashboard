@@ -21,7 +21,7 @@ export default async function DashboardPage() {
   ])
 
   return (
-    <div className="min-h-screen bg-[#080808]">
+    <div className="min-h-screen bg-[#050d1c]">
       <TopNav />
       <main className="px-3 pb-3 md:px-5 md:pb-5" style={{ paddingTop: '3rem' }}>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-w-7xl mx-auto">
@@ -94,7 +94,7 @@ export default async function DashboardPage() {
             <div className="space-y-3 opacity-30">
               <div>
                 <p className="text-[10px] text-zinc-600 tracking-wider mb-2">THIS WEEK</p>
-                <div className="h-0.5 bg-zinc-800 relative">
+                <div className="h-0.5 bg-slate-800 relative">
                   <div className="absolute left-0 top-0 h-full bg-accent w-1/3" />
                 </div>
               </div>

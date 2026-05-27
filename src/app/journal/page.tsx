@@ -20,7 +20,7 @@ export default async function JournalPage() {
     .limit(30)
 
   return (
-    <div className="min-h-screen bg-[#080808]">
+    <div className="min-h-screen bg-[#050d1c]">
       <TopNav />
       <main className="px-3 pb-3 md:px-5 md:pb-5 max-w-3xl mx-auto" style={{ paddingTop: '3rem' }}>
         {/* Page header */}
@@ -65,7 +65,7 @@ export default async function JournalPage() {
 
 function EntryRow({ entry }: { entry: JournalEntry }) {
   return (
-    <div className="border border-zinc-800 bg-[#111] p-4 hover:border-zinc-700 transition-colors">
+    <div className="border border-slate-800 bg-[#0a1830] p-4 hover:border-slate-700 transition-colors">
       <div className="flex items-start justify-between gap-4">
         <p className="text-xs text-zinc-300 leading-relaxed flex-1 line-clamp-2">{entry.text}</p>
         <div className="text-right shrink-0">
@@ -86,7 +86,7 @@ function EntryRow({ entry }: { entry: JournalEntry }) {
           {entry.mood_tags.map((tag) => (
             <span
               key={tag}
-              className="text-[10px] text-zinc-600 bg-zinc-800/50 px-2 py-0.5 tracking-wider"
+              className="text-[10px] text-zinc-600 bg-slate-800/50 px-2 py-0.5 tracking-wider"
             >
               {tag}
             </span>

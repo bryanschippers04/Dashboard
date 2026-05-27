@@ -16,7 +16,7 @@ export default function TopNav() {
   const pathname = usePathname()
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 h-10 bg-[#080808] border-b border-zinc-800 flex items-center px-4 gap-6">
+    <nav className="fixed top-0 left-0 right-0 z-50 h-10 bg-[#050d1c] border-b border-slate-800 flex items-center px-4 gap-6">
       <span className="text-[11px] text-zinc-400 tracking-[0.3em] font-medium whitespace-nowrap">
         OS <span className="text-zinc-700">//</span> V0
       </span>
