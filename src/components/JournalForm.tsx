@@ -10,6 +10,14 @@ const MOOD_TAGS = [
   'calm', 'motivated', 'stressed', 'grateful', 'productive',
 ]
 
+function appendSpoken(prev: string, addition: string): string {
+  const clean = addition.trim()
+  if (!clean) return prev
+  if (!prev) return clean
+  const needsSpace = !/\s$/.test(prev)
+  return prev + (needsSpace ? ' ' : '') + clean
+}
+
 export default function JournalForm() {
   const [text, setText] = useState('')
   const [rating, setRating] = useState<number | null>(null)
@@ -39,13 +47,17 @@ export default function JournalForm() {
     recognition.lang = 'nl-NL'
 
     recognition.onresult = (event) => {
+      // event.results is cumulative — start at resultIndex so we don't
+      // re-append earlier finals every time a new utterance settles.
+      // (resultIndex is in the Web Speech spec but missing from some
+      // TS lib versions; cast through unknown.)
+      const start = (event as unknown as { resultIndex?: number }).resultIndex ?? 0
       let transcript = ''
-      for (let i = 0; i < event.results.length; i++) {
-        if (event.results[i].isFinal) {
-          transcript += event.results[i][0].transcript + ' '
-        }
+      for (let i = start; i < event.results.length; i++) {
+        const r = event.results[i]
+        if (r.isFinal) transcript += r[0].transcript
       }
-      if (transcript) setText((prev) => prev + transcript)
+      if (transcript) setText((prev) => appendSpoken(prev, transcript))
     }
 
     recognition.onerror = () => setIsRecording(false)

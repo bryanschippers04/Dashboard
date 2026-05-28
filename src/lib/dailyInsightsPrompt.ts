@@ -18,18 +18,19 @@ WHAT TO LOOK FOR
 
 WHAT TO AVOID
 - Generic wellness advice.
-- More than 3 insights. One sharp one beats three vague ones.
+- More than 2 insights. One sharp one beats two vague ones.
 - Restating starred insights or distillations — build on them.
 - Bible verses (this is the daily, not the weekly).
+- Multi-sentence bodies. A daily insight is a single line.
 
 OUTPUT
-Return ONLY a JSON array — no prose, no wrapping object — with 1–3 objects:
+Return ONLY a JSON array — no prose, no wrapping object — with 1–2 objects:
 
 [
   {
     "type": "pattern" | "action" | "win" | "warning",
     "title": "short headline, <60 chars",
-    "body": "1-2 sentences. Cite specific data from yesterday."
+    "body": "ONE short sentence. Cite specific data from yesterday."
   }
 ]
 

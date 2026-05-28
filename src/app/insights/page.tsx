@@ -2,6 +2,9 @@ import Link from 'next/link'
 import TopNav from '@/components/TopNav'
 import GenerateInsightsButton from '@/components/GenerateInsightsButton'
 import InsightCard, { type InsightCardRow } from '@/components/InsightCard'
+import InsightsViewToggle, {
+  type InsightsView,
+} from '@/components/InsightsViewToggle'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 
@@ -15,7 +18,14 @@ interface SummaryRow {
   summary: string
 }
 
-export default async function InsightsPage() {
+export default async function InsightsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string }>
+}) {
+  const { view: rawView } = await searchParams
+  const view: InsightsView = rawView === 'daily' ? 'daily' : 'weekly'
+
   const supabase = await createClient()
   const {
     data: { user },
@@ -45,7 +55,9 @@ export default async function InsightsPage() {
 
   const starred = rows.filter((r) => r.is_starred)
   const unstarred = rows.filter((r) => !r.is_starred)
-  const groups = groupByWeek(unstarred)
+  const inView = unstarred.filter((r) =>
+    view === 'weekly' ? r.scope !== 'daily' : r.scope === 'daily'
+  )
 
   return (
     <div className="min-h-screen bg-[#050d1c]">
@@ -62,7 +74,7 @@ export default async function InsightsPage() {
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <h1 className="text-base text-zinc-100">Weekly Insights</h1>
+            <h1 className="text-base text-zinc-100">Insights</h1>
             <Link
               href="/"
               className="text-[10px] text-zinc-600 hover:text-zinc-300 tracking-wider transition-colors"
@@ -94,33 +106,81 @@ export default async function InsightsPage() {
           </section>
         )}
 
-        {groups.length === 0 ? (
-          <p className="text-xs text-zinc-700 py-4">
-            No insights yet. Hit Generate above once you have a day or week of
-            journal and transaction data.
-          </p>
+        <InsightsViewToggle active={view} />
+
+        {view === 'weekly' ? (
+          <WeeklyTimeline rows={inView} summaryByWeek={summaryByWeek} />
         ) : (
-          <div className="flex flex-col gap-8">
-            {groups.map((g) => (
-              <section key={g.weekStart ?? 'unknown'}>
-                <p className="text-[10px] text-zinc-500 tracking-[0.2em] uppercase mb-2">
-                  Week of {formatWeek(g.weekStart)}
-                </p>
-                {g.weekStart && summaryByWeek.get(g.weekStart) && (
-                  <p className="text-[11px] text-zinc-500 italic leading-relaxed mb-3 border-l-2 border-slate-800 pl-3">
-                    {summaryByWeek.get(g.weekStart)}
-                  </p>
-                )}
-                <div className="flex flex-col gap-2">
-                  {g.items.map((row) => (
-                    <InsightCard key={row.id} row={row} />
-                  ))}
-                </div>
-              </section>
-            ))}
-          </div>
+          <DailyTimeline rows={inView} />
         )}
       </main>
+    </div>
+  )
+}
+
+function WeeklyTimeline({
+  rows,
+  summaryByWeek,
+}: {
+  rows: InsightRow[]
+  summaryByWeek: Map<string, string>
+}) {
+  const groups = groupByWeek(rows)
+  if (groups.length === 0) {
+    return (
+      <p className="text-xs text-zinc-700 py-4">
+        No weekly insights yet. Hit + WEEKLY above once you have a Mon–Sun
+        of data, or wait for Sunday night.
+      </p>
+    )
+  }
+  return (
+    <div className="flex flex-col gap-8">
+      {groups.map((g) => (
+        <section key={g.weekStart ?? 'unknown'}>
+          <p className="text-[10px] text-zinc-500 tracking-[0.2em] uppercase mb-2">
+            Week of {formatWeek(g.weekStart)}
+          </p>
+          {g.weekStart && summaryByWeek.get(g.weekStart) && (
+            <p className="text-[11px] text-zinc-500 italic leading-relaxed mb-3 border-l-2 border-slate-800 pl-3">
+              {summaryByWeek.get(g.weekStart)}
+            </p>
+          )}
+          <div className="flex flex-col gap-2">
+            {g.items.map((row) => (
+              <InsightCard key={row.id} row={row} />
+            ))}
+          </div>
+        </section>
+      ))}
+    </div>
+  )
+}
+
+function DailyTimeline({ rows }: { rows: InsightRow[] }) {
+  const groups = groupByDay(rows)
+  if (groups.length === 0) {
+    return (
+      <p className="text-xs text-zinc-700 py-4">
+        No daily insights yet. Hit + DAILY above to generate one for
+        yesterday.
+      </p>
+    )
+  }
+  return (
+    <div className="flex flex-col gap-6">
+      {groups.map((g) => (
+        <section key={g.day}>
+          <p className="text-[10px] text-zinc-500 tracking-[0.2em] uppercase mb-2">
+            {formatDayHeader(g.day)}
+          </p>
+          <div className="flex flex-col gap-2">
+            {g.items.map((row) => (
+              <InsightCard key={row.id} row={row} compact />
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
   )
 }
@@ -128,22 +188,9 @@ export default async function InsightsPage() {
 function groupByWeek(rows: InsightRow[]) {
   const map = new Map<string, InsightRow[]>()
   for (const r of rows) {
-    // Daily rows: group by the Monday of the week containing their `day`.
-    // Weekly rows: group by their stored week_start.
-    const key = r.scope === 'daily' && r.day ? mondayOf(r.day) : r.week_start ?? 'unknown'
+    const key = r.week_start ?? 'unknown'
     if (!map.has(key)) map.set(key, [])
     map.get(key)!.push(r)
-  }
-  // Sort items inside each group: weekly first, then daily by day desc.
-  for (const list of map.values()) {
-    list.sort((a, b) => {
-      const aw = a.scope === 'weekly' ? 1 : 0
-      const bw = b.scope === 'weekly' ? 1 : 0
-      if (aw !== bw) return bw - aw
-      const ad = a.day ?? a.week_start ?? ''
-      const bd = b.day ?? b.week_start ?? ''
-      return bd.localeCompare(ad)
-    })
   }
   return Array.from(map.entries())
     .sort((a, b) => b[0].localeCompare(a[0]))
@@ -153,12 +200,17 @@ function groupByWeek(rows: InsightRow[]) {
     }))
 }
 
-function mondayOf(day: string): string {
-  const d = new Date(day + 'T00:00:00Z')
-  const dow = d.getUTCDay() // 0 = Sun
-  const offset = dow === 0 ? 6 : dow - 1
-  d.setUTCDate(d.getUTCDate() - offset)
-  return d.toISOString().slice(0, 10)
+function groupByDay(rows: InsightRow[]) {
+  const map = new Map<string, InsightRow[]>()
+  for (const r of rows) {
+    const key = r.day ?? 'unknown'
+    if (!map.has(key)) map.set(key, [])
+    map.get(key)!.push(r)
+  }
+  return Array.from(map.entries())
+    .filter(([day]) => day !== 'unknown')
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([day, items]) => ({ day, items }))
 }
 
 function formatWeek(weekStart: string | null): string {
@@ -173,4 +225,14 @@ function formatWeek(weekStart: string | null): string {
       timeZone: 'UTC',
     })
   return `${fmt(start)} – ${fmt(end)}`
+}
+
+function formatDayHeader(day: string): string {
+  const d = new Date(day + 'T00:00:00Z')
+  return d.toLocaleDateString('en-GB', {
+    weekday: 'short',
+    day: '2-digit',
+    month: 'short',
+    timeZone: 'UTC',
+  })
 }
