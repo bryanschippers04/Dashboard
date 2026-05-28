@@ -30,6 +30,8 @@ export default async function DashboardPage() {
     { data: bankAccountsData },
     { data: recentTx },
     { data: manualData },
+    { data: latestSummary },
+    { data: starredData },
   ] = await Promise.all([
     supabase
       .from('journal_entries')
@@ -67,6 +69,22 @@ export default async function DashboardPage() {
           .from('manual_accounts')
           .select('id, name, iban, balance, balance_set_at')
           .eq('user_id', user.id)
+      : Promise.resolve({ data: [] }),
+    user
+      ? admin
+          .from('insight_summaries')
+          .select('week_start, summary')
+          .eq('user_id', user.id)
+          .order('week_start', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    user
+      ? admin
+          .from('insights')
+          .select('id, insight_type, title, body, content')
+          .eq('user_id', user.id)
+          .eq('is_starred', true)
       : Promise.resolve({ data: [] }),
   ])
 
@@ -136,6 +154,19 @@ export default async function DashboardPage() {
     )
     .reduce((s, t) => s + Math.abs(Number(t.amount)), 0)
   const recentForCard = txRows.slice(0, 3)
+
+  const distillation = latestSummary as { week_start: string; summary: string } | null
+  const starredAll = (starredData ?? []) as Array<{
+    id: string
+    insight_type: string
+    title: string | null
+    body: string | null
+    content: string | null
+  }>
+  const randomStarred =
+    starredAll.length > 0
+      ? starredAll[Math.floor(Math.random() * starredAll.length)]
+      : null
 
   const netWorth = manualRefs.reduce(
     (s, m) => s + derivedBalance(m, transactionRefs),
@@ -403,6 +434,68 @@ export default async function DashboardPage() {
                 </Link>
               </div>
             )}
+          </Card>
+
+          {/* Insights */}
+          <Card
+            number="07"
+            label="INSIGHTS"
+            action={
+              <Link
+                href="/insights"
+                className="text-[10px] text-zinc-600 hover:text-zinc-300 tracking-widest transition-colors"
+              >
+                OPEN →
+              </Link>
+            }
+          >
+            <div className="flex flex-col gap-4">
+              <div>
+                <p className="text-[10px] text-zinc-600 tracking-wider mb-2">
+                  WEEK SUMMARY
+                </p>
+                {distillation ? (
+                  <p className="text-xs text-zinc-400 italic leading-relaxed">
+                    {distillation.summary}
+                  </p>
+                ) : (
+                  <p className="text-xs text-zinc-700">
+                    Run weekly insights to generate your first summary.
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <p className="text-[10px] text-amber-400/80 tracking-wider mb-2">
+                  ★ FROM LIBRARY
+                </p>
+                {randomStarred ? (
+                  <div>
+                    <p className="text-xs text-zinc-200 leading-snug mb-1">
+                      {randomStarred.title ??
+                        randomStarred.content?.split('\n')[0] ??
+                        ''}
+                    </p>
+                    {randomStarred.body && (
+                      <p className="text-[11px] text-zinc-500 leading-relaxed line-clamp-2">
+                        {randomStarred.body}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs text-zinc-700">
+                    Star insights on /insights to build your library.
+                  </p>
+                )}
+              </div>
+
+              <Link
+                href="/insights"
+                className="text-[10px] text-zinc-700 hover:text-accent transition-colors tracking-widest"
+              >
+                OPEN INSIGHTS →
+              </Link>
+            </div>
           </Card>
         </div>
       </main>
