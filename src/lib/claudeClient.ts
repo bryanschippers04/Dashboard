@@ -98,3 +98,89 @@ function parseJSONLoose<T>(text: string): T {
   }
   return JSON.parse(cleaned) as T
 }
+
+// ----- Tool use (function calling) -----
+
+export interface ToolDefinitionForApi {
+  name: string
+  description: string
+  input_schema: Record<string, unknown>
+}
+
+export type ContentBlock =
+  | { type: 'text'; text: string }
+  | { type: 'tool_use'; id: string; name: string; input: Record<string, unknown> }
+  | { type: 'tool_result'; tool_use_id: string; content: string; is_error?: boolean }
+
+export interface ConversationMessage {
+  role: 'user' | 'assistant'
+  content: string | ContentBlock[]
+}
+
+export interface CallClaudeWithToolsArgs {
+  system: string
+  messages: ConversationMessage[]
+  tools: ToolDefinitionForApi[]
+  model?: string
+  maxTokens?: number
+}
+
+export interface CallClaudeWithToolsResult {
+  content: ContentBlock[]
+  stop_reason: string
+  usage: ClaudeUsage
+}
+
+export async function callClaudeWithTools({
+  system,
+  messages,
+  tools,
+  model = DEFAULT_MODEL,
+  maxTokens = DEFAULT_MAX_TOKENS,
+}: CallClaudeWithToolsArgs): Promise<CallClaudeWithToolsResult> {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) {
+    throw new Error('ANTHROPIC_API_KEY is not set')
+  }
+
+  const body = {
+    model,
+    max_tokens: maxTokens,
+    system,
+    tools,
+    messages,
+  }
+
+  const res = await fetch(API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': API_VERSION,
+    },
+    body: JSON.stringify(body),
+  })
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '')
+    throw new Error(`Claude API ${res.status}: ${errText}`)
+  }
+
+  const data = (await res.json()) as {
+    content?: ContentBlock[]
+    stop_reason?: string
+    model?: string
+    usage?: { input_tokens?: number; output_tokens?: number }
+  }
+  const content = data.content ?? []
+  const usage: ClaudeUsage = {
+    model: data.model ?? model,
+    input_tokens: data.usage?.input_tokens ?? 0,
+    output_tokens: data.usage?.output_tokens ?? 0,
+  }
+  return {
+    content,
+    stop_reason: data.stop_reason ?? '',
+    usage,
+  }
+}

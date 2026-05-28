@@ -2,6 +2,7 @@ import Link from 'next/link'
 import TopNav from '@/components/TopNav'
 import OperatorCard from '@/components/OperatorCard'
 import SessionCard from '@/components/SessionCard'
+import AssistantCard from '@/components/AssistantCard'
 import Card from '@/components/Card'
 import type { Goal } from '@/components/GoalList'
 import { createClient } from '@/lib/supabase/server'
@@ -178,6 +179,9 @@ export default async function DashboardPage() {
     <div className="min-h-screen bg-[#050d1c]">
       <TopNav />
       <main className="app-page-top px-3 pb-3 md:px-5 md:pb-5">
+        <div className="max-w-7xl mx-auto mb-3">
+          <AssistantCard />
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-w-7xl mx-auto">
           <OperatorCard />
           <SessionCard />
