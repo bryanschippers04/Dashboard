@@ -9,6 +9,19 @@ export interface JournalEntry {
   timestamp: string
   rating: number | null
   mood_tags: string[] | null
+  sleep_minutes: number | null
+  energy: number | null
+  productivity: number | null
+  exercise: string | null
+  time_outside: string | null
+  phone_time_minutes: number | null
+}
+
+function formatSleep(minutes: number): string {
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  if (m === 0) return `${h}h`
+  return `${h}h ${m.toString().padStart(2, '0')}m`
 }
 
 export default function JournalEntryRow({ entry }: { entry: JournalEntry }) {
@@ -54,6 +67,48 @@ export default function JournalEntryRow({ entry }: { entry: JournalEntry }) {
           </p>
         </div>
       </div>
+
+      {(entry.sleep_minutes !== null ||
+        entry.energy !== null ||
+        entry.productivity !== null ||
+        entry.exercise ||
+        entry.time_outside ||
+        entry.phone_time_minutes !== null) && (
+        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[10px] text-zinc-500 tabular-nums">
+          {entry.sleep_minutes !== null && (
+            <span>
+              <span className="text-zinc-700">SLEEP</span>{' '}
+              {formatSleep(entry.sleep_minutes)}
+            </span>
+          )}
+          {entry.energy !== null && (
+            <span>
+              <span className="text-zinc-700">E</span> {entry.energy}/10
+            </span>
+          )}
+          {entry.productivity !== null && (
+            <span>
+              <span className="text-zinc-700">P</span> {entry.productivity}/10
+            </span>
+          )}
+          {entry.phone_time_minutes !== null && (
+            <span>
+              <span className="text-zinc-700">PHONE</span>{' '}
+              {formatSleep(entry.phone_time_minutes)}
+            </span>
+          )}
+          {entry.time_outside && (
+            <span>
+              <span className="text-zinc-700">OUTSIDE</span> {entry.time_outside}
+            </span>
+          )}
+          {entry.exercise && (
+            <span className="basis-full text-zinc-400">
+              <span className="text-zinc-700">EXERCISE</span> {entry.exercise}
+            </span>
+          )}
+        </div>
+      )}
 
       {entry.mood_tags && entry.mood_tags.length > 0 && (
         <div className="flex gap-1.5 mt-2 flex-wrap">

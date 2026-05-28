@@ -102,7 +102,9 @@ export async function runAndStoreWeekly(
   const [journalRes, txRes, goalsRes, memory] = await Promise.all([
     admin
       .from('journal_entries')
-      .select('text, timestamp, rating, mood_tags, language')
+      .select(
+        'text, timestamp, rating, mood_tags, language, sleep_minutes, energy, productivity, exercise, time_outside, phone_time_minutes'
+      )
       .eq('user_id', userId)
       .gte('timestamp', start.toISOString())
       .lte('timestamp', end.toISOString())
@@ -183,7 +185,9 @@ export async function runAndStoreDaily(
   const [journalRes, txRes, goalsRes, memory] = await Promise.all([
     admin
       .from('journal_entries')
-      .select('text, timestamp, rating, mood_tags, language')
+      .select(
+        'text, timestamp, rating, mood_tags, language, sleep_minutes, energy, productivity, exercise, time_outside, phone_time_minutes'
+      )
       .eq('user_id', userId)
       .gte('timestamp', start.toISOString())
       .lte('timestamp', end.toISOString())

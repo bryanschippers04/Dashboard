@@ -8,7 +8,9 @@ export default async function JournalPage() {
   const supabase = await createClient()
   const { data: entries } = await supabase
     .from('journal_entries')
-    .select('id, text, text_compact, timestamp, rating, mood_tags')
+    .select(
+      'id, text, text_compact, timestamp, rating, mood_tags, sleep_minutes, energy, productivity, exercise, time_outside, phone_time_minutes'
+    )
     .order('timestamp', { ascending: false })
     .limit(30)
 

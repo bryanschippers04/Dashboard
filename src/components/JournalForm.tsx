@@ -20,19 +20,64 @@ function appendSpoken(prev: string, addition: string): string {
   return prev + (needsSpace ? ' ' : '') + clean
 }
 
-function snapshot(text: string, rating: number | null, tags: string[]): string {
-  return JSON.stringify({ text, rating, tags: [...tags].sort() })
+interface ExtraFields {
+  sleepMinutes: number | null
+  energy: number | null
+  productivity: number | null
+  exercise: string
+  timeOutside: TimeOutside | null
+  phoneTimeMinutes: number | null
+}
+
+type TimeOutside = 'none' | '<30m' | '30-60m' | '1h+'
+
+const TIME_OUTSIDE_OPTIONS: TimeOutside[] = ['none', '<30m', '30-60m', '1h+']
+
+function snapshot(
+  text: string,
+  rating: number | null,
+  tags: string[],
+  extras: ExtraFields
+): string {
+  return JSON.stringify({
+    text,
+    rating,
+    tags: [...tags].sort(),
+    ...extras,
+  })
+}
+
+function formatSleep(minutes: number): string {
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  if (m === 0) return `${h}h`
+  return `${h}h ${m.toString().padStart(2, '0')}m`
 }
 
 export default function JournalForm() {
   const [text, setText] = useState('')
   const [rating, setRating] = useState<number | null>(null)
   const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [sleepMinutes, setSleepMinutes] = useState<number | null>(null)
+  const [energy, setEnergy] = useState<number | null>(null)
+  const [productivity, setProductivity] = useState<number | null>(null)
+  const [exercise, setExercise] = useState<string>('')
+  const [timeOutside, setTimeOutside] = useState<TimeOutside | null>(null)
+  const [phoneTimeMinutes, setPhoneTimeMinutes] = useState<number | null>(null)
   const [isRecording, setIsRecording] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [draftSavedAt, setDraftSavedAt] = useState<Date | null>(null)
   const [draftLoaded, setDraftLoaded] = useState(false)
+
+  const extras: ExtraFields = {
+    sleepMinutes,
+    energy,
+    productivity,
+    exercise,
+    timeOutside,
+    phoneTimeMinutes,
+  }
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   // Last-saved snapshot — avoids re-upserting identical values.
   const lastSavedRef = useRef<string>('')
@@ -52,19 +97,43 @@ export default function JournalForm() {
       }
       const { data } = await supabase
         .from('journal_drafts')
-        .select('text, rating, mood_tags, updated_at')
+        .select(
+          'text, rating, mood_tags, sleep_minutes, energy, productivity, exercise, time_outside, phone_time_minutes, updated_at'
+        )
         .eq('user_id', user.id)
         .maybeSingle()
       if (cancelled) return
       if (data) {
-        setText(data.text ?? '')
-        setRating(data.rating ?? null)
-        setSelectedTags(data.mood_tags ?? [])
+        const loadedText = data.text ?? ''
+        const loadedRating = data.rating ?? null
+        const loadedTags: string[] = data.mood_tags ?? []
+        const loadedExtras: ExtraFields = {
+          sleepMinutes: data.sleep_minutes ?? null,
+          energy: data.energy ?? null,
+          productivity: data.productivity ?? null,
+          exercise: data.exercise ?? '',
+          timeOutside: (TIME_OUTSIDE_OPTIONS as string[]).includes(
+            data.time_outside ?? ''
+          )
+            ? (data.time_outside as TimeOutside)
+            : null,
+          phoneTimeMinutes: data.phone_time_minutes ?? null,
+        }
+        setText(loadedText)
+        setRating(loadedRating)
+        setSelectedTags(loadedTags)
+        setSleepMinutes(loadedExtras.sleepMinutes)
+        setEnergy(loadedExtras.energy)
+        setProductivity(loadedExtras.productivity)
+        setExercise(loadedExtras.exercise)
+        setTimeOutside(loadedExtras.timeOutside)
+        setPhoneTimeMinutes(loadedExtras.phoneTimeMinutes)
         setDraftSavedAt(data.updated_at ? new Date(data.updated_at) : null)
         lastSavedRef.current = snapshot(
-          data.text ?? '',
-          data.rating ?? null,
-          data.mood_tags ?? []
+          loadedText,
+          loadedRating,
+          loadedTags,
+          loadedExtras
         )
       }
       setDraftLoaded(true)
@@ -74,31 +143,53 @@ export default function JournalForm() {
     }
   }, [])
 
-  // Debounced auto-save. Watches text/rating/tags. Skips while submitting
-  // and while the initial draft load is still in flight.
+  // Debounced auto-save. Watches text/rating/tags/extras. Skips while
+  // submitting and while the initial draft load is still in flight.
   useEffect(() => {
     if (!draftLoaded || isSubmitting) return
-    const snap = snapshot(text, rating, selectedTags)
+    const snap = snapshot(text, rating, selectedTags, extras)
     if (snap === lastSavedRef.current) return
     const id = setTimeout(() => {
       void saveDraft(snap)
     }, DRAFT_DEBOUNCE_MS)
     return () => clearTimeout(id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, rating, selectedTags, draftLoaded, isSubmitting])
+  }, [
+    text,
+    rating,
+    selectedTags,
+    sleepMinutes,
+    energy,
+    productivity,
+    exercise,
+    timeOutside,
+    phoneTimeMinutes,
+    draftLoaded,
+    isSubmitting,
+  ])
 
   // Flush pending draft when the tab is being hidden / closed.
   useEffect(() => {
     function onVisibility() {
       if (document.visibilityState !== 'hidden') return
-      const snap = snapshot(text, rating, selectedTags)
+      const snap = snapshot(text, rating, selectedTags, extras)
       if (snap === lastSavedRef.current) return
       void saveDraft(snap)
     }
     document.addEventListener('visibilitychange', onVisibility)
     return () => document.removeEventListener('visibilitychange', onVisibility)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, rating, selectedTags])
+  }, [
+    text,
+    rating,
+    selectedTags,
+    sleepMinutes,
+    energy,
+    productivity,
+    exercise,
+    timeOutside,
+    phoneTimeMinutes,
+  ])
 
   async function saveDraft(snap: string) {
     const supabase = createClient()
@@ -111,6 +202,12 @@ export default function JournalForm() {
       text,
       rating,
       mood_tags: selectedTags.length > 0 ? selectedTags : null,
+      sleep_minutes: sleepMinutes,
+      energy,
+      productivity,
+      exercise: exercise.trim() || null,
+      time_outside: timeOutside,
+      phone_time_minutes: phoneTimeMinutes,
       updated_at: new Date().toISOString(),
     })
     if (!e) {
@@ -131,11 +228,27 @@ export default function JournalForm() {
     setText('')
     setRating(null)
     setSelectedTags([])
+    setSleepMinutes(null)
+    setEnergy(null)
+    setProductivity(null)
+    setExercise('')
+    setTimeOutside(null)
+    setPhoneTimeMinutes(null)
     setDraftSavedAt(null)
     lastSavedRef.current = ''
   }
 
-  const hasDraft = draftSavedAt !== null && (text.trim() || rating !== null || selectedTags.length > 0)
+  const hasDraft =
+    draftSavedAt !== null &&
+    (text.trim() ||
+      rating !== null ||
+      selectedTags.length > 0 ||
+      sleepMinutes !== null ||
+      energy !== null ||
+      productivity !== null ||
+      exercise.trim() ||
+      timeOutside !== null ||
+      phoneTimeMinutes !== null)
 
   const toggleRecording = useCallback(() => {
     if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
@@ -197,6 +310,12 @@ export default function JournalForm() {
         text: text.trim(),
         rating,
         mood_tags: selectedTags.length > 0 ? selectedTags : null,
+        sleep_minutes: sleepMinutes,
+        energy,
+        productivity,
+        exercise: exercise.trim() || null,
+        time_outside: timeOutside,
+        phone_time_minutes: phoneTimeMinutes,
       }),
     })
     if (!res.ok) {
@@ -218,6 +337,12 @@ export default function JournalForm() {
     setText('')
     setRating(null)
     setSelectedTags([])
+    setSleepMinutes(null)
+    setEnergy(null)
+    setProductivity(null)
+    setExercise('')
+    setTimeOutside(null)
+    setPhoneTimeMinutes(null)
     setDraftSavedAt(null)
     lastSavedRef.current = ''
     setIsSubmitting(false)
@@ -283,25 +408,114 @@ export default function JournalForm() {
       />
 
       <div className="px-4 pb-4 space-y-4 border-t border-slate-800 pt-4">
-        {/* Rating */}
+        {/* Sleep slider */}
         <div>
-          <p className="text-[10px] text-zinc-600 tracking-widest mb-2 uppercase">Mood Rating</p>
-          <div className="flex gap-1 flex-wrap">
-            {Array.from({ length: 11 }, (_, i) => (
+          <div className="flex items-baseline justify-between mb-2">
+            <p className="text-[10px] text-zinc-600 tracking-widest uppercase">
+              Sleep
+            </p>
+            <div className="flex items-center gap-3">
+              <p className="text-xs text-accent tabular-nums">
+                {sleepMinutes !== null ? formatSleep(sleepMinutes) : '—'}
+              </p>
+              {sleepMinutes !== null && (
+                <button
+                  type="button"
+                  onClick={() => setSleepMinutes(null)}
+                  className="text-[10px] tracking-widest text-zinc-700 hover:text-red-400 transition-colors"
+                >
+                  CLEAR
+                </button>
+              )}
+            </div>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={720}
+            step={15}
+            value={sleepMinutes ?? 420}
+            onChange={(e) => setSleepMinutes(Number(e.target.value))}
+            className="w-full accent-accent"
+          />
+        </div>
+
+        {/* Phone time slider (end of day) */}
+        <div>
+          <div className="flex items-baseline justify-between mb-2">
+            <p className="text-[10px] text-zinc-600 tracking-widest uppercase">
+              Phone time
+            </p>
+            <div className="flex items-center gap-3">
+              <p className="text-xs text-accent tabular-nums">
+                {phoneTimeMinutes !== null ? formatSleep(phoneTimeMinutes) : '—'}
+              </p>
+              {phoneTimeMinutes !== null && (
+                <button
+                  type="button"
+                  onClick={() => setPhoneTimeMinutes(null)}
+                  className="text-[10px] tracking-widest text-zinc-700 hover:text-red-400 transition-colors"
+                >
+                  CLEAR
+                </button>
+              )}
+            </div>
+          </div>
+          <input
+            type="range"
+            min={0}
+            max={720}
+            step={15}
+            value={phoneTimeMinutes ?? 240}
+            onChange={(e) => setPhoneTimeMinutes(Number(e.target.value))}
+            className="w-full accent-accent"
+          />
+        </div>
+
+        {/* Rating: Mood / Energy / Productivity */}
+        <RatingRow label="Mood" value={rating} onChange={setRating} />
+        <RatingRow label="Energy" value={energy} onChange={setEnergy} />
+        <RatingRow
+          label="Productivity"
+          value={productivity}
+          onChange={setProductivity}
+        />
+
+        {/* Time outside */}
+        <div>
+          <p className="text-[10px] text-zinc-600 tracking-widest mb-2 uppercase">
+            Time outside
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {TIME_OUTSIDE_OPTIONS.map((opt) => (
               <button
-                key={i}
+                key={opt}
                 type="button"
-                onClick={() => setRating(rating === i ? null : i)}
-                className={`w-7 h-7 text-[10px] border transition-colors ${
-                  rating === i
+                onClick={() => setTimeOutside(timeOutside === opt ? null : opt)}
+                className={`text-[10px] px-2.5 py-1 border transition-colors tracking-wider ${
+                  timeOutside === opt
                     ? 'border-accent text-accent bg-accent/10'
                     : 'border-slate-800 text-zinc-600 hover:border-zinc-600 hover:text-zinc-400'
                 }`}
               >
-                {i}
+                {opt}
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Exercise free text */}
+        <div>
+          <p className="text-[10px] text-zinc-600 tracking-widest mb-2 uppercase">
+            Exercise
+          </p>
+          <input
+            type="text"
+            value={exercise}
+            onChange={(e) => setExercise(e.target.value)}
+            placeholder="e.g. 30min run, 1h gym push day"
+            className="w-full bg-[#050d1c] border border-slate-800 text-xs text-zinc-200 placeholder-zinc-700 px-2 py-1.5 focus:outline-none focus:border-slate-500"
+          />
         </div>
 
         {/* Mood tags */}
@@ -339,5 +553,39 @@ export default function JournalForm() {
         </div>
       </div>
     </form>
+  )
+}
+
+function RatingRow({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: number | null
+  onChange: (v: number | null) => void
+}) {
+  return (
+    <div>
+      <p className="text-[10px] text-zinc-600 tracking-widest mb-2 uppercase">
+        {label}
+      </p>
+      <div className="flex gap-1 flex-wrap">
+        {Array.from({ length: 11 }, (_, i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => onChange(value === i ? null : i)}
+            className={`w-7 h-7 text-[10px] border transition-colors ${
+              value === i
+                ? 'border-accent text-accent bg-accent/10'
+                : 'border-slate-800 text-zinc-600 hover:border-zinc-600 hover:text-zinc-400'
+            }`}
+          >
+            {i}
+          </button>
+        ))}
+      </div>
+    </div>
   )
 }

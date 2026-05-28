@@ -17,6 +17,12 @@ export interface JournalEntryInput {
   rating: number | null
   mood_tags: string[] | null
   language?: string | null
+  sleep_minutes?: number | null
+  energy?: number | null
+  productivity?: number | null
+  exercise?: string | null
+  time_outside?: string | null
+  phone_time_minutes?: number | null
 }
 
 export interface TransactionInput {
@@ -86,6 +92,12 @@ export interface WeekPayload {
     rating: number | null
     mood_tags: string[]
     text: string
+    sleep_minutes: number | null
+    energy: number | null
+    productivity: number | null
+    exercise: string | null
+    time_outside: string | null
+    phone_time_minutes: number | null
   }>
   spending: {
     total: number
@@ -171,7 +183,13 @@ function buildJournal(entries: JournalEntryInput[]) {
     date: dateOnly(e.timestamp),
     rating: e.rating,
     mood_tags: e.mood_tags ?? [],
-    text: e.text
+    text: e.text,
+    sleep_minutes: e.sleep_minutes ?? null,
+    energy: e.energy ?? null,
+    productivity: e.productivity ?? null,
+    exercise: e.exercise ?? null,
+    time_outside: e.time_outside ?? null,
+    phone_time_minutes: e.phone_time_minutes ?? null,
   }))
 }
 

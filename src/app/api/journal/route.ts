@@ -25,10 +25,39 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
-  const { text, rating, mood_tags, language } = body
+  const {
+    text,
+    rating,
+    mood_tags,
+    language,
+    sleep_minutes,
+    energy,
+    productivity,
+    exercise,
+    time_outside,
+    phone_time_minutes,
+  } = body
   if (typeof text !== 'string' || !text.trim()) {
     return NextResponse.json({ error: 'text required' }, { status: 400 })
   }
+
+  const TIME_OUTSIDE_OPTIONS = new Set(['none', '<30m', '30-60m', '1h+'])
+  const normalizedTimeOutside =
+    typeof time_outside === 'string' && TIME_OUTSIDE_OPTIONS.has(time_outside)
+      ? time_outside
+      : null
+  const normalizedSleep =
+    typeof sleep_minutes === 'number' && sleep_minutes >= 0 && sleep_minutes <= 1440
+      ? Math.round(sleep_minutes)
+      : null
+  const normalizedPhone =
+    typeof phone_time_minutes === 'number' &&
+    phone_time_minutes >= 0 &&
+    phone_time_minutes <= 1440
+      ? Math.round(phone_time_minutes)
+      : null
+  const clamp10 = (n: unknown) =>
+    typeof n === 'number' && n >= 0 && n <= 10 ? Math.round(n) : null
 
   // Compact via Claude. Failure is non-fatal — we still save the raw
   // entry, just without a compact view.
@@ -51,6 +80,15 @@ export async function POST(request: Request) {
       rating: rating ?? null,
       mood_tags: mood_tags ?? null,
       language: language ?? 'nl-NL',
+      sleep_minutes: normalizedSleep,
+      energy: clamp10(energy),
+      productivity: clamp10(productivity),
+      exercise:
+        typeof exercise === 'string' && exercise.trim()
+          ? exercise.trim()
+          : null,
+      time_outside: normalizedTimeOutside,
+      phone_time_minutes: normalizedPhone,
     })
     .select()
     .single()
