@@ -8,8 +8,16 @@ import { useRouter } from 'next/navigation'
 const DRAFT_DEBOUNCE_MS = 1500
 
 const MOOD_TAGS = [
-  'focused', 'energized', 'tired', 'anxious', 'creative',
-  'calm', 'motivated', 'stressed', 'grateful', 'productive',
+  // cognitive
+  'focused', 'sharp', 'brainfog', 'scattered', 'distracted', 'creative',
+  // energy
+  'energized', 'tired',
+  // motivation
+  'motivated', 'productive',
+  // positive emotions
+  'calm', 'grateful', 'joyful', 'content', 'hopeful', 'excited',
+  // negative emotions
+  'anxious', 'stressed', 'sad', 'frustrated', 'lonely', 'overwhelmed',
 ]
 
 function appendSpoken(prev: string, addition: string): string {
