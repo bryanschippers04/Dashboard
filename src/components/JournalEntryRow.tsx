@@ -1,0 +1,89 @@
+'use client'
+
+import { useState } from 'react'
+
+export interface JournalEntry {
+  id: string
+  text: string
+  text_compact: string | null
+  timestamp: string
+  rating: number | null
+  mood_tags: string[] | null
+}
+
+export default function JournalEntryRow({ entry }: { entry: JournalEntry }) {
+  const [expanded, setExpanded] = useState(false)
+  const bullets = entry.text_compact
+    ? entry.text_compact.split('\n').map((s) => s.trim()).filter(Boolean)
+    : null
+  const hasRaw = entry.text && entry.text.trim().length > 0
+  const canExpand = bullets !== null && hasRaw
+
+  return (
+    <div className="border border-slate-800 bg-[#0a1830] p-4 hover:border-slate-700 transition-colors">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          {bullets ? (
+            <ul className="space-y-1">
+              {bullets.map((b, i) => (
+                <li
+                  key={i}
+                  className="text-xs text-zinc-300 leading-relaxed flex gap-2"
+                >
+                  <span className="text-zinc-700 shrink-0">›</span>
+                  <span>{b}</span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-xs text-zinc-300 leading-relaxed line-clamp-2">
+              {entry.text}
+            </p>
+          )}
+        </div>
+        <div className="text-right shrink-0">
+          {entry.rating !== null && (
+            <p className="text-xs text-accent tabular-nums">{entry.rating}/10</p>
+          )}
+          <p className="text-[10px] text-zinc-600 mt-0.5">
+            {new Date(entry.timestamp).toLocaleDateString('en-GB', {
+              day: '2-digit',
+              month: 'short',
+              year: '2-digit',
+            })}
+          </p>
+        </div>
+      </div>
+
+      {entry.mood_tags && entry.mood_tags.length > 0 && (
+        <div className="flex gap-1.5 mt-2 flex-wrap">
+          {entry.mood_tags.map((tag) => (
+            <span
+              key={tag}
+              className="text-[10px] text-zinc-600 bg-slate-800/50 px-2 py-0.5 tracking-wider"
+            >
+              {tag}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {canExpand && (
+        <div className="mt-3">
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            className="text-[10px] text-zinc-700 hover:text-zinc-400 tracking-widest transition-colors"
+          >
+            {expanded ? '− HIDE RAW' : '+ SHOW RAW'}
+          </button>
+          {expanded && (
+            <p className="mt-2 text-[11px] text-zinc-500 leading-relaxed whitespace-pre-wrap border-l-2 border-slate-800 pl-3">
+              {entry.text}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}

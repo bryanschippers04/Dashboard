@@ -189,31 +189,31 @@ export default function JournalForm() {
     setIsSubmitting(true)
     setError('')
 
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
-      setError('Not authenticated')
-      setIsSubmitting(false)
-      return
-    }
-
-    const { error: dbError } = await supabase.from('journal_entries').insert({
-      user_id: user.id,
-      text: text.trim(),
-      rating,
-      mood_tags: selectedTags.length > 0 ? selectedTags : null,
-      timestamp: new Date().toISOString(),
+    // Server route handles Claude-compacting + insert + usage logging.
+    const res = await fetch('/api/journal', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: text.trim(),
+        rating,
+        mood_tags: selectedTags.length > 0 ? selectedTags : null,
+      }),
     })
-
-    if (dbError) {
-      setError(dbError.message)
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}))
+      setError(data.error || 'Save failed')
       setIsSubmitting(false)
       return
     }
 
     // Entry saved → clear the draft row (best-effort).
-    await supabase.from('journal_drafts').delete().eq('user_id', user.id)
+    const supabase = createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (user) {
+      await supabase.from('journal_drafts').delete().eq('user_id', user.id)
+    }
 
     setText('')
     setRating(null)

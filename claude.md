@@ -31,7 +31,7 @@ Not built yet:
 
 All RLS enabled. Service-role-only tables have no client policies; the server uses \`src/lib/supabase/admin.ts\`.
 
-1\. \`journal\_entries\` \- id, user\_id, text, timestamp, rating (0-10), mood\_tags\[\], language, audio\_url  
+1\. \`journal\_entries\` \- id, user\_id, text (raw transcript, kept as full-fidelity backup), text\_compact (newline-separated 2–5 hyper-compact bullets produced by Claude on submit), timestamp, rating (0-10), mood\_tags\[\], language, audio\_url. The /journal list renders the compact bullets; SHOW RAW reveals the original.  
 2\. \`todos\` \- id, user\_id, title, completed, due\_date  
 3\. \`goals\` \- id, user\_id, title, type (daily/weekly/monthly), target, current\_progress  
 4\. \`transactions\` \- id, user\_id, amount, category, merchant, date, plaid\_id (unique \- treated as opaque provider transaction id), booked\_at, created\_at, counterparty\_iban, provider\_sequence. **RLS: client SELECT-only, server writes via service role.**  
@@ -51,7 +51,7 @@ Note: there is no \`public.users\` table. Foreign keys point at \`auth.users\` d
 
 \#\# API Endpoints
 
-Journal: POST/GET/DELETE /api/journal  
+Journal: POST/GET/DELETE /api/journal — POST runs the raw text through Claude (\`compactJournal\`) and stores both text \+ text\_compact, plus an api\_usage row.  
 Todos: POST/GET/PATCH/DELETE /api/todos  
 Goals: POST/GET/PATCH/DELETE /api/goals  
 Finance \- connect: POST /api/finance/connect (starts Enable Banking authorisation)  

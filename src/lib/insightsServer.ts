@@ -11,8 +11,7 @@ import {
 import { runWeeklyInsights } from '@/lib/runWeeklyInsights'
 import { runDailyInsights } from '@/lib/runDailyInsights'
 import type { MemoryInput } from '@/lib/aggregateWeek'
-import type { ClaudeUsage } from '@/lib/claudeClient'
-import { computeCostUsd } from '@/lib/pricing'
+import { recordUsage } from '@/lib/usage'
 
 type Admin = SupabaseClient
 
@@ -83,30 +82,6 @@ function toMemoryInsight(r: InsightRow) {
     day: r.day,
     scope: r.scope,
   }
-}
-
-async function recordUsage(
-  admin: Admin,
-  userId: string,
-  endpoint: string,
-  usage: ClaudeUsage
-): Promise<void> {
-  const cost = computeCostUsd(usage.model, usage.input_tokens, usage.output_tokens)
-  // Don't fail the run if usage logging fails; just swallow the error.
-  await admin
-    .from('api_usage')
-    .insert({
-      user_id: userId,
-      provider: 'anthropic',
-      model: usage.model,
-      endpoint,
-      input_tokens: usage.input_tokens,
-      output_tokens: usage.output_tokens,
-      cost_usd: cost,
-    })
-    .then((r) => {
-      if (r.error) console.error('api_usage insert failed:', r.error.message)
-    })
 }
 
 export interface RunWeeklyOutcome {
