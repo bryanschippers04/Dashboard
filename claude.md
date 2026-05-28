@@ -42,7 +42,8 @@ All RLS enabled. Service-role-only tables have no client policies; the server us
 9\. \`insights\` \- id, user\_id, insight\_type (pattern/action/win/warning), title, body, content (legacy), verse (jsonb), scope (weekly/daily), week\_start (date, weekly only), day (date, daily only), is\_starred (bool), generated\_at. **RLS: client SELECT-only (writes via service role).** Starred rows are pinned into every future Claude run as canonical memory.  
 10\. \`insight\_summaries\` \- id, user\_id, week\_start, summary, created\_at. One row per week — a ~2-sentence broken-English distillation of that week's insights, auto-generated alongside each weekly run. Fed into all future runs as long-term memory. Unique on (user\_id, week\_start). **RLS: service-role only.**  
 11\. \`api\_usage\` \- id, user\_id, provider, model, endpoint, input\_tokens, output\_tokens, cost\_usd (numeric(14,8)), created\_at. One row per paid API call (today only Anthropic). Cost is computed at insert time using \`src/lib/pricing.ts\`. **RLS: service-role only.**  
-12\. \`screen\_time\` \- id, user\_id, duration\_minutes, app\_name, date. Not yet used (Day 6).
+12\. \`journal\_drafts\` \- user\_id (PK), text, rating, mood\_tags\[\], language, updated\_at. One rolling draft per user, written directly from the browser via RLS policy ("users manage own draft"). Auto-upserted by \`JournalForm\` ~1.5s after typing pauses; deleted on successful submit or via the DISCARD button. **RLS: client read/write own row.**  
+13\. \`screen\_time\` \- id, user\_id, duration\_minutes, app\_name, date. Not yet used (Day 6).
 
 Note: there is no \`public.users\` table. Foreign keys point at \`auth.users\` directly.
 
