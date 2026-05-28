@@ -12,6 +12,7 @@ const navItems = [
   { href: '/todos', label: 'TODOS' },
   { href: '/finance', label: 'FINANCE' },
   { href: '/insights', label: 'INSIGHTS' },
+  { href: '/calendar', label: 'CALENDAR' },
 ]
 
 export default function TopNav() {

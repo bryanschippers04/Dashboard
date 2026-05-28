@@ -12,6 +12,7 @@ import { runWeeklyInsights } from '@/lib/runWeeklyInsights'
 import { runDailyInsights } from '@/lib/runDailyInsights'
 import type { MemoryInput } from '@/lib/aggregateWeek'
 import { recordUsage } from '@/lib/usage'
+import { getEventsInRange } from '@/lib/calendarServer'
 
 type Admin = SupabaseClient
 
@@ -99,7 +100,7 @@ export async function runAndStoreWeekly(
   const weekStart = start.toISOString().slice(0, 10)
   const weekEnd = end.toISOString().slice(0, 10)
 
-  const [journalRes, txRes, goalsRes, memory] = await Promise.all([
+  const [journalRes, txRes, goalsRes, memory, calendarEvents] = await Promise.all([
     admin
       .from('journal_entries')
       .select(
@@ -120,6 +121,7 @@ export async function runAndStoreWeekly(
       .select('title, type, target, current_progress')
       .eq('user_id', userId),
     getInsightsMemory(admin, userId),
+    getEventsInRange(userId, start, end).catch(() => []),
   ])
 
   const { insights, distillation, usage } = await runWeeklyInsights({
@@ -132,6 +134,7 @@ export async function runAndStoreWeekly(
       date: string
     }>,
     goals: goalsRes.data ?? [],
+    calendarEvents,
     memory,
   })
 
@@ -182,7 +185,7 @@ export async function runAndStoreDaily(
   const { start, end } = getYesterdayRange()
   const day = start.toISOString().slice(0, 10)
 
-  const [journalRes, txRes, goalsRes, memory] = await Promise.all([
+  const [journalRes, txRes, goalsRes, memory, calendarEvents] = await Promise.all([
     admin
       .from('journal_entries')
       .select(
@@ -202,6 +205,7 @@ export async function runAndStoreDaily(
       .select('title, type, target, current_progress')
       .eq('user_id', userId),
     getInsightsMemory(admin, userId),
+    getEventsInRange(userId, start, end).catch(() => []),
   ])
 
   const { insights, usage } = await runDailyInsights({
@@ -214,6 +218,7 @@ export async function runAndStoreDaily(
       date: string
     }>,
     goals: goalsRes.data ?? [],
+    calendarEvents,
     memory,
   })
 

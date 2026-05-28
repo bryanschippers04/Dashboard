@@ -32,11 +32,19 @@ export interface DayGoalInput {
   current_progress: number | string
 }
 
+export interface DayCalendarEventInput {
+  start?: string | Date | null
+  end?: string | Date | null
+  title?: string | null
+  summary?: string | null
+}
+
 export interface AggregateDayArgs {
   day: string | Date
   journalEntries?: DayJournalInput[]
   transactions?: DayTransactionInput[]
   goals?: DayGoalInput[]
+  calendarEvents?: DayCalendarEventInput[]
   memory?: MemoryInput
 }
 
@@ -67,6 +75,7 @@ export interface DayPayload {
     current: number
     percent: number | null
   }>
+  calendar: Array<{ time: string | null; title: string }>
   memory: ReturnType<typeof buildMemory>
 }
 
@@ -75,6 +84,7 @@ export function aggregateDay({
   journalEntries = [],
   transactions = [],
   goals = [],
+  calendarEvents = [],
   memory = {},
 }: AggregateDayArgs): DayPayload {
   return {
@@ -82,8 +92,20 @@ export function aggregateDay({
     journal: buildJournal(journalEntries),
     spending: buildSpending(transactions),
     goals: buildGoals(goals),
+    calendar: buildCalendar(calendarEvents),
     memory: buildMemory(memory),
   }
+}
+
+function buildCalendar(events: DayCalendarEventInput[]) {
+  return events.map((e) => {
+    const startIso =
+      e.start instanceof Date ? e.start.toISOString() : (e.start ?? null)
+    return {
+      time: startIso ? startIso.slice(11, 16) : null,
+      title: e.title ?? e.summary ?? '',
+    }
+  })
 }
 
 function buildJournal(entries: DayJournalInput[]) {
