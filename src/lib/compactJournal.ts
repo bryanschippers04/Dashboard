@@ -3,17 +3,26 @@
 
 import { callClaudeJSON, type ClaudeUsage } from './claudeClient'
 import { JOURNAL_COMPACT_SYSTEM_PROMPT } from './journalCompactPrompt'
+import { modelFor } from './models'
 
 export interface CompactJournalResult {
   bullets: string[]
   usage: ClaudeUsage
 }
 
-export async function compactJournal(rawText: string): Promise<CompactJournalResult> {
+export interface CompactJournalOptions {
+  modelOverride?: string | null
+}
+
+export async function compactJournal(
+  rawText: string,
+  opts: CompactJournalOptions = {}
+): Promise<CompactJournalResult> {
   const { data, usage } = await callClaudeJSON<unknown>({
     system: JOURNAL_COMPACT_SYSTEM_PROMPT,
     user: rawText,
     maxTokens: 600,
+    model: modelFor('journal_compact', opts.modelOverride),
   })
 
   if (!Array.isArray(data)) {

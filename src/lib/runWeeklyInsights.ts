@@ -8,6 +8,7 @@
 
 import { aggregateWeek, type AggregateWeekArgs } from './aggregateWeek'
 import { callClaudeJSON, type ClaudeUsage } from './claudeClient'
+import { modelFor } from './models'
 import { WEEKLY_INSIGHTS_SYSTEM_PROMPT } from './weeklyInsightsPrompt'
 
 export type InsightType = 'pattern' | 'action' | 'win' | 'warning'
@@ -25,8 +26,14 @@ export interface WeeklyResult {
   usage: ClaudeUsage
 }
 
+export interface RunWeeklyOptions {
+  /** Explicit model id; takes precedence over env/default. */
+  modelOverride?: string | null
+}
+
 export async function runWeeklyInsights(
-  input: AggregateWeekArgs
+  input: AggregateWeekArgs,
+  opts: RunWeeklyOptions = {}
 ): Promise<WeeklyResult> {
   const payload = aggregateWeek(input)
   const userMessage = JSON.stringify(payload, null, 2)
@@ -34,6 +41,7 @@ export async function runWeeklyInsights(
   const { data, usage } = await callClaudeJSON<unknown>({
     system: WEEKLY_INSIGHTS_SYSTEM_PROMPT,
     user: userMessage,
+    model: modelFor('insights_weekly', opts.modelOverride),
   })
 
   const { insights, distillation } = validateWeeklyResponse(data)

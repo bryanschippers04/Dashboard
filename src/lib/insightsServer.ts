@@ -13,6 +13,7 @@ import { runDailyInsights } from '@/lib/runDailyInsights'
 import type { MemoryInput } from '@/lib/aggregateWeek'
 import { recordUsage } from '@/lib/usage'
 import { getEventsInRange } from '@/lib/calendarServer'
+import { getUserModelOverrides } from '@/lib/models'
 
 type Admin = SupabaseClient
 
@@ -100,7 +101,7 @@ export async function runAndStoreWeekly(
   const weekStart = start.toISOString().slice(0, 10)
   const weekEnd = end.toISOString().slice(0, 10)
 
-  const [journalRes, txRes, goalsRes, memory, calendarEvents] = await Promise.all([
+  const [journalRes, txRes, goalsRes, memory, calendarEvents, prefs] = await Promise.all([
     admin
       .from('journal_entries')
       .select(
@@ -122,21 +123,25 @@ export async function runAndStoreWeekly(
       .eq('user_id', userId),
     getInsightsMemory(admin, userId),
     getEventsInRange(userId, start, end).catch(() => []),
+    getUserModelOverrides(admin, userId),
   ])
 
-  const { insights, distillation, usage } = await runWeeklyInsights({
-    weekStart: start,
-    weekEnd: end,
-    journalEntries: journalRes.data ?? [],
-    transactions: (txRes.data ?? []) as Array<{
-      amount: number
-      category: string | null
-      date: string
-    }>,
-    goals: goalsRes.data ?? [],
-    calendarEvents,
-    memory,
-  })
+  const { insights, distillation, usage } = await runWeeklyInsights(
+    {
+      weekStart: start,
+      weekEnd: end,
+      journalEntries: journalRes.data ?? [],
+      transactions: (txRes.data ?? []) as Array<{
+        amount: number
+        category: string | null
+        date: string
+      }>,
+      goals: goalsRes.data ?? [],
+      calendarEvents,
+      memory,
+    },
+    { modelOverride: prefs.insights_weekly }
+  )
 
   // Record usage even if validation rejects everything — the API call
   // happened and was billed.
@@ -185,7 +190,7 @@ export async function runAndStoreDaily(
   const { start, end } = getYesterdayRange()
   const day = start.toISOString().slice(0, 10)
 
-  const [journalRes, txRes, goalsRes, memory, calendarEvents] = await Promise.all([
+  const [journalRes, txRes, goalsRes, memory, calendarEvents, prefs] = await Promise.all([
     admin
       .from('journal_entries')
       .select(
@@ -206,21 +211,25 @@ export async function runAndStoreDaily(
       .eq('user_id', userId),
     getInsightsMemory(admin, userId),
     getEventsInRange(userId, start, end).catch(() => []),
+    getUserModelOverrides(admin, userId),
   ])
 
-  const { insights, usage } = await runDailyInsights({
-    day: start,
-    journalEntries: journalRes.data ?? [],
-    transactions: (txRes.data ?? []) as Array<{
-      amount: number
-      category: string | null
-      merchant: string | null
-      date: string
-    }>,
-    goals: goalsRes.data ?? [],
-    calendarEvents,
-    memory,
-  })
+  const { insights, usage } = await runDailyInsights(
+    {
+      day: start,
+      journalEntries: journalRes.data ?? [],
+      transactions: (txRes.data ?? []) as Array<{
+        amount: number
+        category: string | null
+        merchant: string | null
+        date: string
+      }>,
+      goals: goalsRes.data ?? [],
+      calendarEvents,
+      memory,
+    },
+    { modelOverride: prefs.insights_daily }
+  )
 
   await recordUsage(admin, userId, endpoint, usage)
 

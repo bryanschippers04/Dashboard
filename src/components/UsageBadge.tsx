@@ -20,11 +20,36 @@ interface UsageSummary {
   by_endpoint: UsageBreakdownItem[]
 }
 
+type ModelCategory =
+  | 'assistant'
+  | 'insights_weekly'
+  | 'insights_daily'
+  | 'journal_compact'
+
+interface PreferencesResponse {
+  overrides: Record<ModelCategory, string | null>
+  resolved: Record<ModelCategory, string>
+}
+
+const PICKER_OPTIONS = [
+  { id: 'claude-haiku-4-5-20251001', label: 'HAIKU' },
+  { id: 'claude-sonnet-4-6', label: 'SONNET' },
+]
+
+const CATEGORY_LABELS: Array<{ key: ModelCategory; label: string }> = [
+  { key: 'assistant', label: 'Assistant' },
+  { key: 'insights_weekly', label: 'Insights weekly' },
+  { key: 'insights_daily', label: 'Insights daily' },
+  { key: 'journal_compact', label: 'Journal compact' },
+]
+
 export default function UsageBadge() {
   const [open, setOpen] = useState(false)
   const [data, setData] = useState<UsageSummary | null>(null)
+  const [prefs, setPrefs] = useState<PreferencesResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [savingCat, setSavingCat] = useState<ModelCategory | null>(null)
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -32,15 +57,21 @@ export default function UsageBadge() {
     let cancelled = false
     setLoading(true)
     setError(null)
-    fetch('/api/usage')
-      .then(async (res) => {
-        const json = await res.json()
+    Promise.all([fetch('/api/usage'), fetch('/api/preferences')])
+      .then(async ([usageRes, prefRes]) => {
         if (cancelled) return
-        if (!res.ok) {
-          setError(json.error || 'Failed to load')
+        const usageJson = await usageRes.json()
+        const prefJson = await prefRes.json()
+        if (!usageRes.ok) {
+          setError(usageJson.error || 'Failed to load usage')
           return
         }
-        setData(json as UsageSummary)
+        if (!prefRes.ok) {
+          setError(prefJson.error || 'Failed to load preferences')
+          return
+        }
+        setData(usageJson as UsageSummary)
+        setPrefs(prefJson as PreferencesResponse)
       })
       .catch((e) => {
         if (!cancelled) setError(e instanceof Error ? e.message : 'Failed')
@@ -64,44 +95,134 @@ export default function UsageBadge() {
     return () => document.removeEventListener('mousedown', onClick)
   }, [open])
 
+  async function setModel(category: ModelCategory, modelId: string) {
+    if (!prefs) return
+    setSavingCat(category)
+    try {
+      const res = await fetch('/api/preferences', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [category]: modelId }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setError(json.error || 'Save failed')
+        return
+      }
+      // Optimistic update — re-resolve from server-confirmed overrides.
+      const updatedOverrides = json.overrides as Record<ModelCategory, string | null>
+      setPrefs({
+        overrides: updatedOverrides,
+        resolved: {
+          ...prefs.resolved,
+          [category]: modelId,
+        },
+      })
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Save failed')
+    } finally {
+      setSavingCat(null)
+    }
+  }
+
   return (
     <div ref={ref} className="relative">
       <button
         type="button"
-        aria-label="API usage"
+        aria-label="Settings"
         onClick={() => setOpen((o) => !o)}
-        className={`w-6 h-6 flex items-center justify-center transition-colors ${
-          open ? 'text-zinc-200' : 'text-zinc-600 hover:text-zinc-300'
+        className={`w-9 h-9 -m-2 flex items-center justify-center transition-colors ${
+          open ? 'text-zinc-200' : 'text-zinc-600 hover:text-zinc-300 active:text-zinc-300'
         }`}
       >
-        <Settings size={13} />
+        <Settings size={14} />
       </button>
 
       {open && (
-        <div className="absolute right-0 top-8 z-50 w-72 border border-slate-800 bg-[#0a1830] shadow-xl">
+        <div className="absolute right-0 top-9 z-50 w-80 max-w-[calc(100vw-1.5rem)] border border-slate-800 bg-[#0a1830] shadow-xl">
           <div className="px-3 py-2 border-b border-slate-800 flex items-center justify-between">
             <p className="text-[10px] text-zinc-500 tracking-[0.2em] uppercase">
-              API spend
+              Settings
             </p>
-            <p className="text-[10px] text-zinc-700 tracking-wider">
-              {data?.model ?? 'ANTHROPIC'}
-            </p>
+            <p className="text-[10px] text-zinc-700 tracking-wider">ANTHROPIC</p>
           </div>
 
           {loading && (
             <p className="px-3 py-3 text-[11px] text-zinc-600">Loading…</p>
           )}
-          {error && (
-            <p className="px-3 py-3 text-[11px] text-red-400">{error}</p>
-          )}
+          {error && <p className="px-3 py-3 text-[11px] text-red-400">{error}</p>}
 
-          {data && !loading && !error && (
+          {data && prefs && !loading && !error && (
             <div>
-              <Row label="Total" amount={data.total_eur} highlight />
-              <Row label="This month" amount={data.month_eur} />
-              <Row label="Last 7 days" amount={data.week_eur} />
+              {/* MODELS section */}
+              <div className="px-3 py-2 border-b border-slate-800">
+                <p className="text-[10px] text-zinc-600 tracking-wider mb-2">
+                  MODELS
+                </p>
+                <div className="flex flex-col gap-1.5">
+                  {CATEGORY_LABELS.map((cat) => {
+                    const current = prefs.resolved[cat.key]
+                    return (
+                      <div
+                        key={cat.key}
+                        className="flex items-center justify-between gap-2"
+                      >
+                        <span className="text-[11px] text-zinc-400">
+                          {cat.label}
+                        </span>
+                        <div className="flex gap-0.5">
+                          {PICKER_OPTIONS.map((opt) => {
+                            const active = current === opt.id
+                            return (
+                              <button
+                                key={opt.id}
+                                type="button"
+                                onClick={() => setModel(cat.key, opt.id)}
+                                disabled={savingCat === cat.key}
+                                className={`text-[10px] tracking-wider px-2 py-1 border transition-colors disabled:opacity-40 ${
+                                  active
+                                    ? 'border-accent text-accent bg-accent/10'
+                                    : 'border-slate-700 text-zinc-500 hover:border-zinc-500 hover:text-zinc-300 active:border-zinc-500'
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
 
-              <div className="px-3 py-2 border-t border-slate-800">
+              {/* SPEND section */}
+              <div className="px-3 py-2 border-b border-slate-800">
+                <p className="text-[10px] text-zinc-600 tracking-wider mb-2">
+                  API SPEND
+                </p>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] text-zinc-500">Total</span>
+                  <span className="text-sm text-zinc-100 tabular-nums">
+                    {formatEur(data.total_eur)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] text-zinc-500">This month</span>
+                  <span className="text-[11px] text-zinc-300 tabular-nums">
+                    {formatEur(data.month_eur)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-zinc-500">Last 7 days</span>
+                  <span className="text-[11px] text-zinc-300 tabular-nums">
+                    {formatEur(data.week_eur)}
+                  </span>
+                </div>
+              </div>
+
+              {/* BY ENDPOINT */}
+              <div className="px-3 py-2 border-b border-slate-800">
                 <p className="text-[10px] text-zinc-600 tracking-wider mb-2">
                   BY ENDPOINT
                 </p>
@@ -129,8 +250,10 @@ export default function UsageBadge() {
                 )}
               </div>
 
-              <div className="px-3 py-2 border-t border-slate-800 flex items-center justify-between text-[10px] text-zinc-600">
-                <span>{data.calls} call{data.calls === 1 ? '' : 's'}</span>
+              <div className="px-3 py-2 flex items-center justify-between text-[10px] text-zinc-600">
+                <span>
+                  {data.calls} call{data.calls === 1 ? '' : 's'}
+                </span>
                 <span className="tabular-nums">
                   {data.input_tokens.toLocaleString()} in ·{' '}
                   {data.output_tokens.toLocaleString()} out
@@ -144,31 +267,7 @@ export default function UsageBadge() {
   )
 }
 
-function Row({
-  label,
-  amount,
-  highlight = false,
-}: {
-  label: string
-  amount: number
-  highlight?: boolean
-}) {
-  return (
-    <div className="px-3 py-2 flex items-center justify-between border-b border-slate-800 last:border-b-0">
-      <span className="text-[11px] text-zinc-500">{label}</span>
-      <span
-        className={`tabular-nums ${
-          highlight ? 'text-sm text-zinc-100' : 'text-[11px] text-zinc-300'
-        }`}
-      >
-        {formatEur(amount)}
-      </span>
-    </div>
-  )
-}
-
 function formatEur(amount: number): string {
-  // Display with enough precision to show sub-cent costs.
   if (amount === 0) return '€ 0,00'
   if (amount < 0.01) return '€ ' + amount.toFixed(6).replace('.', ',')
   if (amount < 1) return '€ ' + amount.toFixed(4).replace('.', ',')
@@ -182,6 +281,5 @@ function formatEur(amount: number): string {
 }
 
 function shortEndpoint(endpoint: string): string {
-  // Strip leading `/api/` for compactness in the dropdown.
   return endpoint.replace(/^\/api\//, '')
 }

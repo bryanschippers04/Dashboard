@@ -5,6 +5,7 @@
 import { aggregateDay, type AggregateDayArgs } from './aggregateDay'
 import { callClaudeJSON, type ClaudeUsage } from './claudeClient'
 import { DAILY_INSIGHTS_SYSTEM_PROMPT } from './dailyInsightsPrompt'
+import { modelFor } from './models'
 import { validateInsightArray, type Insight } from './runWeeklyInsights'
 
 export interface DailyResult {
@@ -12,7 +13,14 @@ export interface DailyResult {
   usage: ClaudeUsage
 }
 
-export async function runDailyInsights(input: AggregateDayArgs): Promise<DailyResult> {
+export interface RunDailyOptions {
+  modelOverride?: string | null
+}
+
+export async function runDailyInsights(
+  input: AggregateDayArgs,
+  opts: RunDailyOptions = {}
+): Promise<DailyResult> {
   const payload = aggregateDay(input)
   const userMessage = JSON.stringify(payload, null, 2)
 
@@ -20,6 +28,7 @@ export async function runDailyInsights(input: AggregateDayArgs): Promise<DailyRe
     system: DAILY_INSIGHTS_SYSTEM_PROMPT,
     user: userMessage,
     maxTokens: 1500,
+    model: modelFor('insights_daily', opts.modelOverride),
   })
 
   if (!Array.isArray(data)) {

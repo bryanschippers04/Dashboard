@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { NextResponse } from 'next/server'
 import { compactJournal } from '@/lib/compactJournal'
 import { recordUsage } from '@/lib/usage'
+import { getUserModelOverrides } from '@/lib/models'
 
 export const maxDuration = 30
 
@@ -63,9 +64,12 @@ export async function POST(request: Request) {
   // entry, just without a compact view.
   let textCompact: string | null = null
   try {
-    const result = await compactJournal(text.trim())
-    textCompact = result.bullets.join('\n')
     const admin = createAdminClient()
+    const prefs = await getUserModelOverrides(admin, user.id)
+    const result = await compactJournal(text.trim(), {
+      modelOverride: prefs.journal_compact,
+    })
+    textCompact = result.bullets.join('\n')
     await recordUsage(admin, user.id, '/api/journal', result.usage)
   } catch (e) {
     console.error('compactJournal failed:', e)
