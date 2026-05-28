@@ -3,23 +3,31 @@
 // the results back.
 
 import { aggregateDay, type AggregateDayArgs } from './aggregateDay'
-import { callClaudeJSON } from './claudeClient'
+import { callClaudeJSON, type ClaudeUsage } from './claudeClient'
 import { DAILY_INSIGHTS_SYSTEM_PROMPT } from './dailyInsightsPrompt'
 import { validateInsightArray, type Insight } from './runWeeklyInsights'
 
-export async function runDailyInsights(input: AggregateDayArgs): Promise<Insight[]> {
+export interface DailyResult {
+  insights: Insight[]
+  usage: ClaudeUsage
+}
+
+export async function runDailyInsights(input: AggregateDayArgs): Promise<DailyResult> {
   const payload = aggregateDay(input)
   const userMessage = JSON.stringify(payload, null, 2)
 
-  const raw = await callClaudeJSON<unknown>({
+  const { data, usage } = await callClaudeJSON<unknown>({
     system: DAILY_INSIGHTS_SYSTEM_PROMPT,
     user: userMessage,
     maxTokens: 1500,
   })
 
-  if (!Array.isArray(raw)) {
+  if (!Array.isArray(data)) {
     throw new Error('Daily run: expected a JSON array of insights')
   }
   // Daily prompt forbids verses; strip any that slipped through.
-  return validateInsightArray(raw).map(({ verse: _v, ...rest }) => rest as Insight)
+  const insights = validateInsightArray(data).map(
+    ({ verse: _v, ...rest }) => rest as Insight
+  )
+  return { insights, usage }
 }

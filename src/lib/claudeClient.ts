@@ -1,7 +1,4 @@
 // Wrapper for calling the Claude API.
-// One function: callClaude({ system, user, model, maxTokens })
-// Returns the text content of the response.
-//
 // Reads the API key from process.env.ANTHROPIC_API_KEY.
 // Only call this from server-side code (API routes, cron jobs) —
 // never from the browser, or your key leaks.
@@ -18,12 +15,23 @@ export interface CallClaudeArgs {
   maxTokens?: number
 }
 
+export interface ClaudeUsage {
+  model: string
+  input_tokens: number
+  output_tokens: number
+}
+
+export interface CallClaudeResult {
+  text: string
+  usage: ClaudeUsage
+}
+
 export async function callClaude({
   system,
   user,
   model = DEFAULT_MODEL,
-  maxTokens = DEFAULT_MAX_TOKENS
-}: CallClaudeArgs): Promise<string> {
+  maxTokens = DEFAULT_MAX_TOKENS,
+}: CallClaudeArgs): Promise<CallClaudeResult> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) {
     throw new Error('ANTHROPIC_API_KEY is not set')
@@ -33,7 +41,7 @@ export async function callClaude({
     model,
     max_tokens: maxTokens,
     system,
-    messages: [{ role: 'user', content: user }]
+    messages: [{ role: 'user', content: user }],
   }
 
   const res = await fetch(API_URL, {
@@ -41,9 +49,9 @@ export async function callClaude({
     headers: {
       'Content-Type': 'application/json',
       'x-api-key': apiKey,
-      'anthropic-version': API_VERSION
+      'anthropic-version': API_VERSION,
     },
-    body: JSON.stringify(body)
+    body: JSON.stringify(body),
   })
 
   if (!res.ok) {
@@ -51,19 +59,35 @@ export async function callClaude({
     throw new Error(`Claude API ${res.status}: ${errText}`)
   }
 
-  const data = (await res.json()) as { content?: Array<{ text?: string }> }
+  const data = (await res.json()) as {
+    content?: Array<{ text?: string }>
+    model?: string
+    usage?: { input_tokens?: number; output_tokens?: number }
+  }
   const text = data?.content?.[0]?.text
   if (typeof text !== 'string') {
     throw new Error('Claude response had no text content')
   }
-  return text
+  const usage: ClaudeUsage = {
+    model: data.model ?? model,
+    input_tokens: data.usage?.input_tokens ?? 0,
+    output_tokens: data.usage?.output_tokens ?? 0,
+  }
+  return { text, usage }
+}
+
+export interface CallClaudeJSONResult<T> {
+  data: T
+  usage: ClaudeUsage
 }
 
 // Helper: call Claude and parse the response as JSON.
 // Tolerates accidental code fences or stray whitespace.
-export async function callClaudeJSON<T = unknown>(args: CallClaudeArgs): Promise<T> {
-  const raw = await callClaude(args)
-  return parseJSONLoose<T>(raw)
+export async function callClaudeJSON<T = unknown>(
+  args: CallClaudeArgs
+): Promise<CallClaudeJSONResult<T>> {
+  const { text, usage } = await callClaude(args)
+  return { data: parseJSONLoose<T>(text), usage }
 }
 
 function parseJSONLoose<T>(text: string): T {

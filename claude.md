@@ -41,7 +41,8 @@ All RLS enabled. Service-role-only tables have no client policies; the server us
 8\. \`recurring\_expenses\` \- id, user\_id, name, amount, currency, frequency (weekly/monthly/quarterly/yearly), source, active. Manual entries for Vaste Lasten panel; auto-detected items are computed at read time. **RLS: service-role only.**  
 9\. \`insights\` \- id, user\_id, insight\_type (pattern/action/win/warning), title, body, content (legacy), verse (jsonb), scope (weekly/daily), week\_start (date, weekly only), day (date, daily only), is\_starred (bool), generated\_at. **RLS: client SELECT-only (writes via service role).** Starred rows are pinned into every future Claude run as canonical memory.  
 10\. \`insight\_summaries\` \- id, user\_id, week\_start, summary, created\_at. One row per week — a ~2-sentence broken-English distillation of that week's insights, auto-generated alongside each weekly run. Fed into all future runs as long-term memory. Unique on (user\_id, week\_start). **RLS: service-role only.**  
-11\. \`screen\_time\` \- id, user\_id, duration\_minutes, app\_name, date. Not yet used (Day 6).
+11\. \`api\_usage\` \- id, user\_id, provider, model, endpoint, input\_tokens, output\_tokens, cost\_usd (numeric(14,8)), created\_at. One row per paid API call (today only Anthropic). Cost is computed at insert time using \`src/lib/pricing.ts\`. **RLS: service-role only.**  
+12\. \`screen\_time\` \- id, user\_id, duration\_minutes, app\_name, date. Not yet used (Day 6).
 
 Note: there is no \`public.users\` table. Foreign keys point at \`auth.users\` directly.
 
@@ -61,6 +62,7 @@ Insights \- weekly run (manual): POST /api/insights/run
 Insights \- daily run (manual): POST /api/insights/daily  
 Insights \- cron (Vercel-only): GET/POST /api/insights/cron (Bearer-auth via CRON\_SECRET; reads owner from INSIGHTS\_OWNER\_USER\_ID)  
 Insights \- per-row: PATCH/DELETE /api/insights/\[id\] (PATCH body \`{ is\_starred: boolean }\`)  
+Usage: GET /api/usage (totals + per-endpoint breakdown, used by the gear-icon dropdown in TopNav)  
 Gmail: not yet built  
 Calendar: not yet built
 

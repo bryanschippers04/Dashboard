@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import Clock from './Clock'
+import UsageBadge from './UsageBadge'
 
 const navItems = [
   { href: '/', label: 'HOME' },
@@ -38,7 +39,10 @@ export default function TopNav() {
         ))}
       </div>
 
-      <Clock />
+      <div className="flex items-center gap-3">
+        <UsageBadge />
+        <Clock />
+      </div>
     </nav>
   )
 }

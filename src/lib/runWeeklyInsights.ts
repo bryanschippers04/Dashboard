@@ -7,7 +7,7 @@
 // writing the result back to the database.
 
 import { aggregateWeek, type AggregateWeekArgs } from './aggregateWeek'
-import { callClaudeJSON } from './claudeClient'
+import { callClaudeJSON, type ClaudeUsage } from './claudeClient'
 import { WEEKLY_INSIGHTS_SYSTEM_PROMPT } from './weeklyInsightsPrompt'
 
 export type InsightType = 'pattern' | 'action' | 'win' | 'warning'
@@ -22,6 +22,7 @@ export interface Insight {
 export interface WeeklyResult {
   insights: Insight[]
   distillation: string | null
+  usage: ClaudeUsage
 }
 
 export async function runWeeklyInsights(
@@ -30,15 +31,18 @@ export async function runWeeklyInsights(
   const payload = aggregateWeek(input)
   const userMessage = JSON.stringify(payload, null, 2)
 
-  const raw = await callClaudeJSON<unknown>({
+  const { data, usage } = await callClaudeJSON<unknown>({
     system: WEEKLY_INSIGHTS_SYSTEM_PROMPT,
     user: userMessage,
   })
 
-  return validateWeeklyResponse(raw)
+  const { insights, distillation } = validateWeeklyResponse(data)
+  return { insights, distillation, usage }
 }
 
-function validateWeeklyResponse(value: unknown): WeeklyResult {
+function validateWeeklyResponse(
+  value: unknown
+): { insights: Insight[]; distillation: string | null } {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error('Expected an object { insights, distillation }')
   }

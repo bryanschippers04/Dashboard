@@ -11,6 +11,8 @@ import {
 import { runWeeklyInsights } from '@/lib/runWeeklyInsights'
 import { runDailyInsights } from '@/lib/runDailyInsights'
 import type { MemoryInput } from '@/lib/aggregateWeek'
+import type { ClaudeUsage } from '@/lib/claudeClient'
+import { computeCostUsd } from '@/lib/pricing'
 
 type Admin = SupabaseClient
 
@@ -83,13 +85,40 @@ function toMemoryInsight(r: InsightRow) {
   }
 }
 
+async function recordUsage(
+  admin: Admin,
+  userId: string,
+  endpoint: string,
+  usage: ClaudeUsage
+): Promise<void> {
+  const cost = computeCostUsd(usage.model, usage.input_tokens, usage.output_tokens)
+  // Don't fail the run if usage logging fails; just swallow the error.
+  await admin
+    .from('api_usage')
+    .insert({
+      user_id: userId,
+      provider: 'anthropic',
+      model: usage.model,
+      endpoint,
+      input_tokens: usage.input_tokens,
+      output_tokens: usage.output_tokens,
+      cost_usd: cost,
+    })
+    .then((r) => {
+      if (r.error) console.error('api_usage insert failed:', r.error.message)
+    })
+}
+
 export interface RunWeeklyOutcome {
   inserted: number
   week_start: string
   distillation: string | null
 }
 
-export async function runAndStoreWeekly(userId: string): Promise<RunWeeklyOutcome> {
+export async function runAndStoreWeekly(
+  userId: string,
+  endpoint: string = '/api/insights/run'
+): Promise<RunWeeklyOutcome> {
   const admin = createAdminClient()
   const { start, end } = getLastWeekRange()
   const weekStart = start.toISOString().slice(0, 10)
@@ -116,7 +145,7 @@ export async function runAndStoreWeekly(userId: string): Promise<RunWeeklyOutcom
     getInsightsMemory(admin, userId),
   ])
 
-  const { insights, distillation } = await runWeeklyInsights({
+  const { insights, distillation, usage } = await runWeeklyInsights({
     weekStart: start,
     weekEnd: end,
     journalEntries: journalRes.data ?? [],
@@ -128,6 +157,10 @@ export async function runAndStoreWeekly(userId: string): Promise<RunWeeklyOutcom
     goals: goalsRes.data ?? [],
     memory,
   })
+
+  // Record usage even if validation rejects everything — the API call
+  // happened and was billed.
+  await recordUsage(admin, userId, endpoint, usage)
 
   if (insights.length === 0) {
     throw new Error('Claude returned no usable insights')
@@ -164,7 +197,10 @@ export interface RunDailyOutcome {
   day: string
 }
 
-export async function runAndStoreDaily(userId: string): Promise<RunDailyOutcome> {
+export async function runAndStoreDaily(
+  userId: string,
+  endpoint: string = '/api/insights/daily'
+): Promise<RunDailyOutcome> {
   const admin = createAdminClient()
   const { start, end } = getYesterdayRange()
   const day = start.toISOString().slice(0, 10)
@@ -189,7 +225,7 @@ export async function runAndStoreDaily(userId: string): Promise<RunDailyOutcome>
     getInsightsMemory(admin, userId),
   ])
 
-  const insights = await runDailyInsights({
+  const { insights, usage } = await runDailyInsights({
     day: start,
     journalEntries: journalRes.data ?? [],
     transactions: (txRes.data ?? []) as Array<{
@@ -201,6 +237,8 @@ export async function runAndStoreDaily(userId: string): Promise<RunDailyOutcome>
     goals: goalsRes.data ?? [],
     memory,
   })
+
+  await recordUsage(admin, userId, endpoint, usage)
 
   if (insights.length === 0) {
     throw new Error('Claude returned no usable insights')

@@ -29,7 +29,7 @@ async function handle(req: Request) {
   }
 
   try {
-    const result = await runAndStoreWeekly(userId)
+    const result = await runAndStoreWeekly(userId, '/api/insights/cron')
     return NextResponse.json(result)
   } catch (e) {
     return NextResponse.json(
