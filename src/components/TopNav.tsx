@@ -8,8 +8,9 @@ import UsageBadge from './UsageBadge'
 const navItems = [
   { href: '/', label: 'HOME' },
   { href: '/journal', label: 'JOURNAL' },
-  { href: '/goals', label: 'GOALS' },
   { href: '/todos', label: 'TODOS' },
+  { href: '/habits', label: 'HABITS' },
+  { href: '/goals', label: 'GOALS' },
   { href: '/finance', label: 'FINANCE' },
   { href: '/insights', label: 'INSIGHTS' },
   { href: '/calendar', label: 'CALENDAR' },

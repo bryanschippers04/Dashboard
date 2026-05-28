@@ -2,7 +2,7 @@
 // Mirrors aggregateWeek.ts but for a single day.
 
 import { dateOnly } from './dateRange'
-import { buildMemory, type MemoryInput } from './aggregateWeek'
+import { buildMemory, type HabitInput, type MemoryInput } from './aggregateWeek'
 
 export interface DayJournalInput {
   text: string
@@ -45,6 +45,7 @@ export interface AggregateDayArgs {
   transactions?: DayTransactionInput[]
   goals?: DayGoalInput[]
   calendarEvents?: DayCalendarEventInput[]
+  habits?: HabitInput[]
   memory?: MemoryInput
 }
 
@@ -76,6 +77,14 @@ export interface DayPayload {
     percent: number | null
   }>
   calendar: Array<{ time: string | null; title: string }>
+  habits: Array<{
+    title: string
+    cadence: string
+    target: number
+    current: number
+    streak: number
+    hit_target: boolean
+  }>
   memory: ReturnType<typeof buildMemory>
 }
 
@@ -85,6 +94,7 @@ export function aggregateDay({
   transactions = [],
   goals = [],
   calendarEvents = [],
+  habits = [],
   memory = {},
 }: AggregateDayArgs): DayPayload {
   return {
@@ -93,6 +103,14 @@ export function aggregateDay({
     spending: buildSpending(transactions),
     goals: buildGoals(goals),
     calendar: buildCalendar(calendarEvents),
+    habits: habits.map((h) => ({
+      title: h.title,
+      cadence: h.cadence,
+      target: h.target_count,
+      current: h.current_count,
+      streak: h.streak,
+      hit_target: h.hit_target,
+    })),
     memory: buildMemory(memory),
   }
 }

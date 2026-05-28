@@ -7,6 +7,8 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getEventsInRange } from './calendarServer'
+import { getHabitsWithProgress } from './habitsServer'
+import { currentPeriodKey, type Cadence } from './habits'
 
 export interface ToolExecutorCtx {
   userId: string
@@ -319,6 +321,139 @@ const listUpcomingEvents: ToolEntry = {
   },
 }
 
+// ---------- Habits ----------
+
+const listHabits: ToolEntry = {
+  name: 'list_habits',
+  description:
+    'List the user\'s habits with current-period progress and streak. Use for "what habits do I have", "what\'s left today", or to find an id before ticking/unticking.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      cadence: {
+        type: 'string',
+        enum: ['daily', 'weekly', 'monthly'],
+        description: 'Optional filter — only return habits with this cadence.',
+      },
+    },
+  },
+  async execute(input, { admin, userId }) {
+    const all = await getHabitsWithProgress(admin, userId)
+    const filtered =
+      typeof input.cadence === 'string'
+        ? all.filter((h) => h.cadence === input.cadence)
+        : all
+    return { habits: filtered }
+  },
+}
+
+const tickHabit: ToolEntry = {
+  name: 'tick_habit',
+  description:
+    'Log one completion for a habit in its current period. Use the id from list_habits. Calling more than once in the same period is allowed for target_count > 1 habits.',
+  input_schema: {
+    type: 'object',
+    required: ['id'],
+    properties: { id: { type: 'string', description: 'Habit id.' } },
+  },
+  async execute(input, { admin, userId }) {
+    const id = typeof input.id === 'string' ? input.id : ''
+    if (!id) throw new Error('id is required')
+    const { data: habit, error: hErr } = await admin
+      .from('habits')
+      .select('cadence')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single()
+    if (hErr) throw new Error(hErr.message)
+    const periodKey = currentPeriodKey(habit.cadence as Cadence)
+    const { error } = await admin
+      .from('habit_completions')
+      .insert({ habit_id: id, user_id: userId, period_key: periodKey })
+    if (error) throw new Error(error.message)
+    return { ticked: id, period_key: periodKey }
+  },
+}
+
+const untickHabit: ToolEntry = {
+  name: 'untick_habit',
+  description:
+    'Undo the most recent completion of a habit in its current period. Use when the user says "undo gym" or similar.',
+  input_schema: {
+    type: 'object',
+    required: ['id'],
+    properties: { id: { type: 'string' } },
+  },
+  async execute(input, { admin, userId }) {
+    const id = typeof input.id === 'string' ? input.id : ''
+    if (!id) throw new Error('id is required')
+    const { data: habit, error: hErr } = await admin
+      .from('habits')
+      .select('cadence')
+      .eq('id', id)
+      .eq('user_id', userId)
+      .single()
+    if (hErr) throw new Error(hErr.message)
+    const periodKey = currentPeriodKey(habit.cadence as Cadence)
+    const { data: rows } = await admin
+      .from('habit_completions')
+      .select('id')
+      .eq('habit_id', id)
+      .eq('user_id', userId)
+      .eq('period_key', periodKey)
+      .order('occurred_at', { ascending: false })
+      .limit(1)
+    const row = (rows ?? [])[0] as { id: string } | undefined
+    if (!row) return { unticked: id, removed: 0 }
+    const { error } = await admin
+      .from('habit_completions')
+      .delete()
+      .eq('id', row.id)
+      .eq('user_id', userId)
+    if (error) throw new Error(error.message)
+    return { unticked: id, removed: 1 }
+  },
+}
+
+const createHabit: ToolEntry = {
+  name: 'create_habit',
+  description:
+    'Add a new habit. Use when the user says "add a daily habit to X" or similar. Default target_count is 1 unless the user specifies a number ("3x weekly", "2 times a day").',
+  input_schema: {
+    type: 'object',
+    required: ['title', 'cadence'],
+    properties: {
+      title: { type: 'string' },
+      cadence: {
+        type: 'string',
+        enum: ['daily', 'weekly', 'monthly'],
+      },
+      target_count: {
+        type: 'number',
+        description: 'How many times per period. Default 1.',
+      },
+    },
+  },
+  async execute(input, { admin, userId }) {
+    const title = typeof input.title === 'string' ? input.title.trim() : ''
+    if (!title) throw new Error('title is required')
+    const cadence = input.cadence as Cadence
+    if (!['daily', 'weekly', 'monthly'].includes(cadence))
+      throw new Error('cadence must be daily|weekly|monthly')
+    const target_count =
+      typeof input.target_count === 'number' && input.target_count >= 1
+        ? Math.floor(input.target_count)
+        : 1
+    const { data, error } = await admin
+      .from('habits')
+      .insert({ user_id: userId, title, cadence, target_count })
+      .select('id, title, cadence, target_count')
+      .single()
+    if (error) throw new Error(error.message)
+    return { created: data }
+  },
+}
+
 // ---------- Insights memory (read) ----------
 
 const recallStarredInsights: ToolEntry = {
@@ -346,6 +481,10 @@ export const TOOLS: ToolEntry[] = [
   deleteTodo,
   listGoals,
   updateGoalProgress,
+  listHabits,
+  tickHabit,
+  untickHabit,
+  createHabit,
   createJournalEntry,
   queryRecentSpending,
   listUpcomingEvents,

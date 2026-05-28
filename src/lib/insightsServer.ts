@@ -13,6 +13,7 @@ import { runDailyInsights } from '@/lib/runDailyInsights'
 import type { MemoryInput } from '@/lib/aggregateWeek'
 import { recordUsage } from '@/lib/usage'
 import { getEventsInRange } from '@/lib/calendarServer'
+import { getHabitsWithProgress } from '@/lib/habitsServer'
 import { getUserModelOverrides } from '@/lib/models'
 
 type Admin = SupabaseClient
@@ -101,30 +102,32 @@ export async function runAndStoreWeekly(
   const weekStart = start.toISOString().slice(0, 10)
   const weekEnd = end.toISOString().slice(0, 10)
 
-  const [journalRes, txRes, goalsRes, memory, calendarEvents, prefs] = await Promise.all([
-    admin
-      .from('journal_entries')
-      .select(
-        'text, timestamp, rating, mood_tags, language, sleep_minutes, energy, productivity, exercise, time_outside, phone_time_minutes'
-      )
-      .eq('user_id', userId)
-      .gte('timestamp', start.toISOString())
-      .lte('timestamp', end.toISOString())
-      .order('timestamp', { ascending: true }),
-    admin
-      .from('transactions')
-      .select('amount, category, date')
-      .eq('user_id', userId)
-      .gte('date', weekStart)
-      .lte('date', weekEnd),
-    admin
-      .from('goals')
-      .select('title, type, target, current_progress')
-      .eq('user_id', userId),
-    getInsightsMemory(admin, userId),
-    getEventsInRange(userId, start, end).catch(() => []),
-    getUserModelOverrides(admin, userId),
-  ])
+  const [journalRes, txRes, goalsRes, memory, calendarEvents, prefs, habits] =
+    await Promise.all([
+      admin
+        .from('journal_entries')
+        .select(
+          'text, timestamp, rating, mood_tags, language, sleep_minutes, energy, productivity, exercise, time_outside, phone_time_minutes'
+        )
+        .eq('user_id', userId)
+        .gte('timestamp', start.toISOString())
+        .lte('timestamp', end.toISOString())
+        .order('timestamp', { ascending: true }),
+      admin
+        .from('transactions')
+        .select('amount, category, date')
+        .eq('user_id', userId)
+        .gte('date', weekStart)
+        .lte('date', weekEnd),
+      admin
+        .from('goals')
+        .select('title, type, target, current_progress')
+        .eq('user_id', userId),
+      getInsightsMemory(admin, userId),
+      getEventsInRange(userId, start, end).catch(() => []),
+      getUserModelOverrides(admin, userId),
+      getHabitsWithProgress(admin, userId).catch(() => []),
+    ])
 
   const { insights, distillation, usage } = await runWeeklyInsights(
     {
@@ -138,6 +141,7 @@ export async function runAndStoreWeekly(
       }>,
       goals: goalsRes.data ?? [],
       calendarEvents,
+      habits,
       memory,
     },
     { modelOverride: prefs.insights_weekly }
@@ -190,29 +194,31 @@ export async function runAndStoreDaily(
   const { start, end } = getYesterdayRange()
   const day = start.toISOString().slice(0, 10)
 
-  const [journalRes, txRes, goalsRes, memory, calendarEvents, prefs] = await Promise.all([
-    admin
-      .from('journal_entries')
-      .select(
-        'text, timestamp, rating, mood_tags, language, sleep_minutes, energy, productivity, exercise, time_outside, phone_time_minutes'
-      )
-      .eq('user_id', userId)
-      .gte('timestamp', start.toISOString())
-      .lte('timestamp', end.toISOString())
-      .order('timestamp', { ascending: true }),
-    admin
-      .from('transactions')
-      .select('amount, category, merchant, date')
-      .eq('user_id', userId)
-      .eq('date', day),
-    admin
-      .from('goals')
-      .select('title, type, target, current_progress')
-      .eq('user_id', userId),
-    getInsightsMemory(admin, userId),
-    getEventsInRange(userId, start, end).catch(() => []),
-    getUserModelOverrides(admin, userId),
-  ])
+  const [journalRes, txRes, goalsRes, memory, calendarEvents, prefs, habits] =
+    await Promise.all([
+      admin
+        .from('journal_entries')
+        .select(
+          'text, timestamp, rating, mood_tags, language, sleep_minutes, energy, productivity, exercise, time_outside, phone_time_minutes'
+        )
+        .eq('user_id', userId)
+        .gte('timestamp', start.toISOString())
+        .lte('timestamp', end.toISOString())
+        .order('timestamp', { ascending: true }),
+      admin
+        .from('transactions')
+        .select('amount, category, merchant, date')
+        .eq('user_id', userId)
+        .eq('date', day),
+      admin
+        .from('goals')
+        .select('title, type, target, current_progress')
+        .eq('user_id', userId),
+      getInsightsMemory(admin, userId),
+      getEventsInRange(userId, start, end).catch(() => []),
+      getUserModelOverrides(admin, userId),
+      getHabitsWithProgress(admin, userId).catch(() => []),
+    ])
 
   const { insights, usage } = await runDailyInsights(
     {
@@ -226,6 +232,7 @@ export async function runAndStoreDaily(
       }>,
       goals: goalsRes.data ?? [],
       calendarEvents,
+      habits,
       memory,
     },
     { modelOverride: prefs.insights_daily }

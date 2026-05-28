@@ -2,6 +2,7 @@ import Link from 'next/link'
 import TopNav from '@/components/TopNav'
 import OperatorCard from '@/components/OperatorCard'
 import AssistantCard from '@/components/AssistantCard'
+import HabitsHomeCard from '@/components/HabitsHomeCard'
 import Card from '@/components/Card'
 import type { Goal } from '@/components/GoalList'
 import { createClient } from '@/lib/supabase/server'
@@ -280,9 +281,12 @@ export default async function DashboardPage() {
             </div>
           </Card>
 
+          {/* Habits */}
+          <HabitsHomeCard />
+
           {/* Goals */}
           <Card
-            number="05"
+            number="06"
             label="GOALS"
             action={
               <Link
@@ -345,7 +349,7 @@ export default async function DashboardPage() {
 
           {/* Finance */}
           <Card
-            number="06"
+            number="07"
             label="FINANCE PULSE"
             action={
               <Link
@@ -440,7 +444,7 @@ export default async function DashboardPage() {
 
           {/* Insights */}
           <Card
-            number="07"
+            number="08"
             label="INSIGHTS"
             action={
               <Link

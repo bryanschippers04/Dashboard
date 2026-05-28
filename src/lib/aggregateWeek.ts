@@ -72,6 +72,15 @@ export interface MemoryInput {
   recent?: MemoryInsightInput[]
 }
 
+export interface HabitInput {
+  title: string
+  cadence: string
+  target_count: number
+  current_count: number
+  streak: number
+  hit_target: boolean
+}
+
 export interface AggregateWeekArgs {
   weekStart: string | Date
   weekEnd: string | Date
@@ -80,6 +89,7 @@ export interface AggregateWeekArgs {
   screenTime?: ScreenTimeInput[]
   goals?: GoalInput[]
   calendarEvents?: CalendarEventInput[]
+  habits?: HabitInput[]
   memory?: MemoryInput
 }
 
@@ -118,6 +128,14 @@ export interface WeekPayload {
     percent: number | null
   }>
   calendar: Array<{ date: string | null; title: string }>
+  habits: Array<{
+    title: string
+    cadence: string
+    target: number
+    current: number
+    streak: number
+    hit_target: boolean
+  }>
   memory: {
     starred: Array<{ type: string; title: string; body: string }>
     distillations: Array<{ week_start: string; summary: string }>
@@ -133,6 +151,7 @@ export function aggregateWeek({
   screenTime = [],
   goals = [],
   calendarEvents = [],
+  habits = [],
   memory = {}
 }: AggregateWeekArgs): WeekPayload {
   return {
@@ -145,8 +164,20 @@ export function aggregateWeek({
     screen_time: buildScreenTime(screenTime),
     goals: buildGoals(goals),
     calendar: buildCalendar(calendarEvents),
+    habits: buildHabits(habits),
     memory: buildMemory(memory)
   }
+}
+
+function buildHabits(habits: HabitInput[]) {
+  return habits.map((h) => ({
+    title: h.title,
+    cadence: h.cadence,
+    target: h.target_count,
+    current: h.current_count,
+    streak: h.streak,
+    hit_target: h.hit_target,
+  }))
 }
 
 export function buildMemory(memory: MemoryInput) {
