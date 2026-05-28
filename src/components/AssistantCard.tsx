@@ -16,16 +16,38 @@ interface ChatMessage {
   content: string | ContentBlock[]
 }
 
-export default function AssistantCard() {
+function getGreeting(hour: number) {
+  if (hour < 12) return 'Good morning'
+  if (hour < 17) return 'Good afternoon'
+  return 'Good evening'
+}
+
+export default function AssistantCard({ name }: { name?: string }) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [isOpen, setIsOpen] = useState(false)
   const [isBusy, setIsBusy] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
   const [error, setError] = useState('')
+  const [greeting, setGreeting] = useState('')
+  const [dateStr, setDateStr] = useState('')
   const recognitionRef = useRef<SpeechRecognition | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
+
+  useEffect(() => {
+    const now = new Date()
+    setGreeting(getGreeting(now.getHours()))
+    setDateStr(
+      now
+        .toLocaleDateString('en-GB', {
+          weekday: 'long',
+          month: 'long',
+          day: 'numeric',
+        })
+        .toUpperCase()
+    )
+  }, [])
 
   // Auto-scroll the transcript when new messages arrive.
   useEffect(() => {
@@ -132,16 +154,39 @@ export default function AssistantCard() {
             Assistant
           </p>
         </div>
-        {(hasConversation || isOpen) && (
-          <button
-            type="button"
-            onClick={reset}
-            className="text-[10px] tracking-widest text-zinc-600 hover:text-red-400 active:text-red-400 transition-colors px-2 py-1.5"
-          >
-            CLEAR
-          </button>
-        )}
+        <div className="flex items-center gap-3">
+          {dateStr && !isOpen && (
+            <p className="text-[10px] text-zinc-600 tracking-wider hidden sm:block">
+              {dateStr}
+            </p>
+          )}
+          {(hasConversation || isOpen) && (
+            <button
+              type="button"
+              onClick={reset}
+              className="text-[10px] tracking-widest text-zinc-600 hover:text-red-400 active:text-red-400 transition-colors px-2 py-1.5"
+            >
+              CLEAR
+            </button>
+          )}
+        </div>
       </div>
+
+      {!isOpen && greeting && (
+        <div className="px-4 py-3 border-b border-slate-800">
+          <p className="text-lg text-zinc-100 leading-snug">
+            {greeting},{' '}
+            <em className="not-italic text-zinc-400">
+              {name ?? 'Bryan'}.
+            </em>
+          </p>
+          {dateStr && (
+            <p className="text-[10px] text-zinc-600 tracking-wider mt-1 sm:hidden">
+              {dateStr}
+            </p>
+          )}
+        </div>
+      )}
 
       {isOpen && (
         <div

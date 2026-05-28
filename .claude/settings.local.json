@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)",
+      "Bash(git check-ignore *)",
+      "Bash(ls -la \"/g/My Drive/Claude Self-Dashboard/\" 2>&1 | head -50)",
+      "Read(//g/My Drive/Claude Self-Dashboard//**)",
+      "mcp__claude_ai_Supabase__list_organizations",
+      "mcp__claude_ai_Supabase__list_projects",
+      "WebSearch",
+      "WebFetch(domain:enablebanking.com)",
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(Get-ChildItem -Recurse \"c:\\\\Users\\\\bryan\\\\personal-os\" -Filter \"*.sql\" -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object -First 10)"
+    ]
+  }
+}

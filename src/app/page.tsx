@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import TopNav from '@/components/TopNav'
 import OperatorCard from '@/components/OperatorCard'
-import SessionCard from '@/components/SessionCard'
 import AssistantCard from '@/components/AssistantCard'
 import Card from '@/components/Card'
 import type { Goal } from '@/components/GoalList'
@@ -184,7 +183,6 @@ export default async function DashboardPage() {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-w-7xl mx-auto">
           <OperatorCard />
-          <SessionCard />
 
           {/* Journal */}
           <Card

@@ -42,7 +42,10 @@ All RLS enabled. Service-role-only tables have no client policies; the server us
 9\. \`insights\` \- id, user\_id, insight\_type (pattern/action/win/warning), title, body, content (legacy), verse (jsonb), scope (weekly/daily), week\_start (date, weekly only), day (date, daily only), is\_starred (bool), generated\_at. **RLS: client SELECT-only (writes via service role).** Starred rows are pinned into every future Claude run as canonical memory.  
 10\. \`insight\_summaries\` \- id, user\_id, week\_start, summary, created\_at. One row per week — a ~2-sentence broken-English distillation of that week's insights, auto-generated alongside each weekly run. Fed into all future runs as long-term memory. Unique on (user\_id, week\_start). **RLS: service-role only.**  
 11\. \`api\_usage\` \- id, user\_id, provider, model, endpoint, input\_tokens, output\_tokens, cost\_usd (numeric(14,8)), created\_at. One row per paid API call (today only Anthropic). Cost is computed at insert time using \`src/lib/pricing.ts\`. **RLS: service-role only.**  
-12\. \`journal\_drafts\` \- user\_id (PK), text, rating, mood\_tags\[\], language, sleep\_minutes, energy, productivity, exercise, time\_outside, phone\_time\_minutes, updated\_at. Mirrors the journal\_entries quick-input fields so partial day-state survives across devices. One rolling draft per user, written directly from the browser via RLS policy ("users manage own draft"). Auto-upserted by \`JournalForm\` ~1.5s after typing pauses; deleted on successful submit or via the DISCARD button. **RLS: client read/write own row.**  
+12\. \`journal\_drafts\` \- user\_id (PK), text, rating, mood\_tags\[\], language, sleep\_minutes, energy, productivity, exercise, time\_outside, phone\_time\_minutes, updated\_at. Mirrors the journal\_entries quick-input fields so partial day-state survives across devices. One rolling draft per user, written directly from the browser via RLS policy ("users manage own draft"). Auto-upserted by \`JournalForm\` ~1.5s after typing pauses (plus an explicit SAVE DRAFT button); deleted on successful submit or via DISCARD. **RLS: client read/write own row.**  
+13\. \`user\_preferences\` \- user\_id (PK), model\_assistant, model\_insights\_weekly, model\_insights\_daily, model\_journal\_compact, updated\_at. Per-user Claude model overrides (NULL means use default). Read/write via \`getUserModelOverrides()\` / GET+PATCH \`/api/preferences\`. UI lives in the gear-icon dropdown. **RLS: service-role only.**  
+14\. \`calendar\_tokens\` \- user\_id (PK), access\_token, refresh\_token, expires\_at, scope, created\_at, updated\_at. Google OAuth tokens stored after the user connects their calendar. Refreshed in-place by \`getValidAccessToken()\`. **RLS: service-role only.**  
+15\. \`calendar\_events\` \- id, user\_id, google\_event\_id, calendar\_id ('primary'), summary, description, start\_at, end\_at, all\_day, location, status, synced\_at. Cached event copies pulled by \`/api/calendar/sync\` covering last 7d + next 30d. Unique on (user\_id, google\_event\_id). Read by the insights pipeline via \`getEventsInRange()\` so Claude can correlate mood × spending × schedule. **RLS: client SELECT only; service-role writes.**  
 13\. \`screen\_time\` \- id, user\_id, duration\_minutes, app\_name, date. Not yet used (Day 6).
 
 Note: there is no \`public.users\` table. Foreign keys point at \`auth.users\` directly.
@@ -64,8 +67,13 @@ Insights \- daily run (manual): POST /api/insights/daily
 Insights \- cron (Vercel-only): GET/POST /api/insights/cron (Bearer-auth via CRON\_SECRET; reads owner from INSIGHTS\_OWNER\_USER\_ID)  
 Insights \- per-row: PATCH/DELETE /api/insights/\[id\] (PATCH body \`{ is\_starred: boolean }\`)  
 Usage: GET /api/usage (totals + per-endpoint breakdown, used by the gear-icon dropdown in TopNav)  
-Gmail: not yet built  
-Calendar: not yet built
+Calendar \- connect: GET /api/calendar/connect (redirects to Google's OAuth consent screen)  
+Calendar \- callback: GET /api/calendar/callback (exchanges code for tokens, runs initial sync)  
+Calendar \- sync: POST /api/calendar/sync (re-pulls last 7d + next 30d)  
+Calendar \- disconnect: DELETE /api/calendar/disconnect (clears tokens + cached events)  
+Preferences: GET/PATCH /api/preferences (model overrides per category; UI in gear-icon dropdown)  
+Assistant: POST /api/assistant — body \`{ messages: ConversationMessage\[\] }\`; runs the tool-use loop, returns the updated conversation. Uses model from \`modelFor('assistant', ...)\` (default Haiku). Tools defined in \`src/lib/assistantTools.ts\` (list/create/complete/delete todos, list/update goals, create journal entry, query spending, list upcoming calendar events, recall starred insights).  
+Gmail: not yet built
 
 \---
 
@@ -74,14 +82,20 @@ Calendar: not yet built
 NEXT\_PUBLIC\_SUPABASE\_URL  
 NEXT\_PUBLIC\_SUPABASE\_ANON\_KEY  
 SUPABASE\_SECRET\_KEY (renamed from SUPABASE\_SERVICE\_ROLE\_KEY when migrating to the new Supabase key system)  
-ANTHROPIC\_API\_KEY  
+ANTHROPIC\_API\_KEY (one key, all models — Haiku/Sonnet/Opus all swap via just the model id)  
+MODEL\_ASSISTANT (optional override; default 'claude-haiku-4-5-20251001')  
+MODEL\_INSIGHTS\_WEEKLY (optional override; default 'claude-sonnet-4-6')  
+MODEL\_INSIGHTS\_DAILY (optional override; default 'claude-sonnet-4-6')  
+MODEL\_JOURNAL\_COMPACT (optional override; default 'claude-sonnet-4-6')  
 CRON\_SECRET (random 32+ char string; Vercel adds \`Authorization: Bearer\` on cron requests, the cron route checks this)  
 INSIGHTS\_OWNER\_USER\_ID (this user's UUID from auth.users; the cron has no session, so it picks the owner via env)  
 ENABLE\_BANKING\_APP\_ID  
 ENABLE\_BANKING\_PRIVATE\_KEY (full multi-line PEM; in Vercel paste raw, in .env.local wrap in double quotes)  
+GOOGLE\_CLIENT\_ID (Google Cloud OAuth client; "Web application" type, Calendar API enabled)  
+GOOGLE\_CLIENT\_SECRET (matching secret for the OAuth client)  
+GOOGLE\_REDIRECT\_URI (e.g. https://dashboard-beryl-five-45.vercel.app/api/calendar/callback — must match what's configured in Google Cloud)  
 GMAIL\_CLIENT\_ID (later)  
-GMAIL\_CLIENT\_SECRET (later)  
-GOOGLE\_CALENDAR\_API\_KEY (later)
+GMAIL\_CLIENT\_SECRET (later)
 
 \---
 
@@ -94,6 +108,7 @@ GOOGLE\_CALENDAR\_API\_KEY (later)
 \- /goals       three sections (daily/weekly/monthly) with \+/− quick increment  
 \- /finance     transactions, week/month spend tiles, 14-day bar chart, category breakdown (7d/30d/6mo/1y/all switcher), manual accounts, vaste lasten panel  
 \- /insights    starred library at top, weekly groups below with per-week distillation and daily insights interleaved; manual generate buttons for daily \+ weekly  
+\- /calendar    Google Calendar connect/disconnect/sync; today + next 30d grouped by day  
 \- /privacy     boilerplate for Enable Banking compliance  
 \- /terms       same
 
