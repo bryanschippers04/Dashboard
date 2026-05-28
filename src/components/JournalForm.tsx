@@ -77,6 +77,8 @@ export default function JournalForm() {
   const [error, setError] = useState('')
   const [draftSavedAt, setDraftSavedAt] = useState<Date | null>(null)
   const [draftLoaded, setDraftLoaded] = useState(false)
+  const [draftError, setDraftError] = useState('')
+  const [savingDraft, setSavingDraft] = useState(false)
 
   const extras: ExtraFields = {
     sleepMinutes,
@@ -204,7 +206,10 @@ export default function JournalForm() {
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    if (!user) return
+    if (!user) {
+      setDraftError('Not signed in')
+      return
+    }
     const { error: e } = await supabase.from('journal_drafts').upsert({
       user_id: user.id,
       text,
@@ -218,10 +223,20 @@ export default function JournalForm() {
       phone_time_minutes: phoneTimeMinutes,
       updated_at: new Date().toISOString(),
     })
-    if (!e) {
-      lastSavedRef.current = snap
-      setDraftSavedAt(new Date())
+    if (e) {
+      setDraftError(e.message)
+      return
     }
+    setDraftError('')
+    lastSavedRef.current = snap
+    setDraftSavedAt(new Date())
+  }
+
+  async function saveDraftNow() {
+    setSavingDraft(true)
+    const snap = snapshot(text, rating, selectedTags, extras)
+    await saveDraft(snap)
+    setSavingDraft(false)
   }
 
   async function discardDraft() {
@@ -549,7 +564,32 @@ export default function JournalForm() {
 
         {error && <p className="text-[11px] text-red-400">{error}</p>}
 
-        <div className="flex justify-end">
+        {draftError && (
+          <p className="text-[11px] text-red-400 leading-relaxed">
+            Draft save failed: {draftError}
+          </p>
+        )}
+
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={saveDraftNow}
+            disabled={
+              savingDraft ||
+              (!text.trim() &&
+                rating === null &&
+                selectedTags.length === 0 &&
+                sleepMinutes === null &&
+                energy === null &&
+                productivity === null &&
+                !exercise.trim() &&
+                timeOutside === null &&
+                phoneTimeMinutes === null)
+            }
+            className="text-[10px] tracking-widest border border-slate-700 text-zinc-400 px-4 py-2.5 hover:border-accent hover:text-accent active:border-accent active:text-accent transition-colors disabled:opacity-30"
+          >
+            {savingDraft ? 'SAVING DRAFT…' : 'SAVE DRAFT'}
+          </button>
           <button
             type="submit"
             disabled={!text.trim() || isSubmitting}
