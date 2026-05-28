@@ -75,9 +75,9 @@ export default function InsightCard({
             onClick={remove}
             disabled={busy}
             aria-label="Delete"
-            className="w-5 h-5 flex items-center justify-center text-zinc-700 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+            className="w-9 h-9 -m-2 flex items-center justify-center text-zinc-600 hover:text-red-400 active:text-red-400 transition-colors"
           >
-            <Trash2 size={11} />
+            <Trash2 size={13} />
           </button>
         </div>
       </div>

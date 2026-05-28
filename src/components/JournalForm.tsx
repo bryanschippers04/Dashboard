@@ -500,10 +500,10 @@ export default function JournalForm() {
                 key={opt}
                 type="button"
                 onClick={() => setTimeOutside(timeOutside === opt ? null : opt)}
-                className={`text-[10px] px-2.5 py-1 border transition-colors tracking-wider ${
+                className={`text-[11px] px-3 py-2 border transition-colors tracking-wider ${
                   timeOutside === opt
                     ? 'border-accent text-accent bg-accent/10'
-                    : 'border-slate-800 text-zinc-600 hover:border-zinc-600 hover:text-zinc-400'
+                    : 'border-slate-800 text-zinc-500 active:border-zinc-500 hover:border-zinc-600 hover:text-zinc-400'
                 }`}
               >
                 {opt}
@@ -535,10 +535,10 @@ export default function JournalForm() {
                 key={tag}
                 type="button"
                 onClick={() => toggleTag(tag)}
-                className={`text-[10px] px-2.5 py-1 border transition-colors tracking-wider ${
+                className={`text-[11px] px-3 py-2 border transition-colors tracking-wider ${
                   selectedTags.includes(tag)
                     ? 'border-accent text-accent bg-accent/10'
-                    : 'border-slate-800 text-zinc-600 hover:border-zinc-600 hover:text-zinc-400'
+                    : 'border-slate-800 text-zinc-500 active:border-zinc-500 hover:border-zinc-600 hover:text-zinc-400'
                 }`}
               >
                 {tag}
@@ -584,10 +584,10 @@ function RatingRow({
             key={i}
             type="button"
             onClick={() => onChange(value === i ? null : i)}
-            className={`w-7 h-7 text-[10px] border transition-colors ${
+            className={`w-9 h-9 text-xs border transition-colors ${
               value === i
                 ? 'border-accent text-accent bg-accent/10'
-                : 'border-slate-800 text-zinc-600 hover:border-zinc-600 hover:text-zinc-400'
+                : 'border-slate-800 text-zinc-500 active:border-zinc-500 hover:border-zinc-600 hover:text-zinc-400'
             }`}
           >
             {i}

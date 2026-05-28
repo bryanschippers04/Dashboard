@@ -9,13 +9,17 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
-  title: 'Personal OS',
+  title: 'Dashboard',
   description: 'Personal life & business dashboard',
   manifest: '/manifest.json',
+  icons: {
+    icon: '/icon.svg',
+    apple: '/icon.svg',
+  },
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'black-translucent',
-    title: 'Personal OS',
+    statusBarStyle: 'default',
+    title: 'Dashboard',
   },
   other: {
     'mobile-web-app-capable': 'yes',
@@ -27,6 +31,9 @@ export const viewport: Viewport = {
   themeColor: '#050d1c',
   width: 'device-width',
   initialScale: 1,
+  // `cover` lets the body extend into the notch/home-indicator safe areas
+  // — we then control padding with env(safe-area-inset-*).
+  viewportFit: 'cover',
 }
 
 export default function RootLayout({

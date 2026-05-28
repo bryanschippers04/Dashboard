@@ -128,7 +128,7 @@ export default function JournalEntryRow({ entry }: { entry: JournalEntry }) {
           <button
             type="button"
             onClick={() => setExpanded((v) => !v)}
-            className="text-[10px] text-zinc-700 hover:text-zinc-400 tracking-widest transition-colors"
+            className="text-[10px] text-zinc-700 hover:text-zinc-400 active:text-zinc-400 tracking-widest transition-colors py-2 -my-2 px-1 -mx-1"
           >
             {expanded ? '− HIDE RAW' : '+ SHOW RAW'}
           </button>

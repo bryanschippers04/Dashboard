@@ -149,19 +149,19 @@ function ViewRow({
           type="button"
           onClick={onEdit}
           disabled={busy}
-          className="w-6 h-6 border border-slate-700 text-zinc-400 hover:border-accent hover:text-accent transition-colors flex items-center justify-center"
+          className="w-9 h-9 border border-slate-700 text-zinc-400 hover:border-accent hover:text-accent active:border-accent active:text-accent transition-colors flex items-center justify-center"
           aria-label="Edit account"
         >
-          <Pencil size={11} />
+          <Pencil size={13} />
         </button>
         <button
           type="button"
           onClick={remove}
           disabled={busy}
-          className="opacity-0 group-hover:opacity-100 transition-opacity text-zinc-700 hover:text-red-400"
+          className="w-9 h-9 -mr-2 flex items-center justify-center text-zinc-600 hover:text-red-400 active:text-red-400 transition-colors"
           aria-label="Delete account"
         >
-          <X size={12} />
+          <X size={14} />
         </button>
       </div>
     </li>

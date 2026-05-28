@@ -94,24 +94,24 @@ function ViewRow({
       <span className="text-xs text-zinc-200 tabular-nums shrink-0">
         {fmt(entry.amount)}
       </span>
-      <div className="flex items-center gap-0.5 shrink-0">
+      <div className="flex items-center shrink-0">
         <button
           type="button"
           onClick={onEdit}
           disabled={busy}
-          className="w-5 h-5 text-zinc-600 hover:text-accent transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
+          className="w-9 h-9 -my-2 text-zinc-600 hover:text-accent active:text-accent transition-colors flex items-center justify-center"
           aria-label="Edit"
         >
-          <Pencil size={10} />
+          <Pencil size={12} />
         </button>
         <button
           type="button"
           onClick={remove}
           disabled={busy}
-          className="w-5 h-5 text-zinc-600 hover:text-red-400 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100"
+          className="w-9 h-9 -my-2 -mr-1 text-zinc-600 hover:text-red-400 active:text-red-400 transition-colors flex items-center justify-center"
           aria-label="Delete"
         >
-          <Trash2 size={11} />
+          <Trash2 size={13} />
         </button>
       </div>
     </div>

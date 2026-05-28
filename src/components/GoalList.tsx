@@ -90,29 +90,29 @@ export default function GoalList({ goals }: { goals: Goal[] }) {
                   type="button"
                   onClick={() => bump(goal, -1)}
                   disabled={isPending || displayed === 0}
-                  className="w-6 h-6 border border-slate-700 text-zinc-400 hover:border-accent hover:text-accent transition-colors disabled:opacity-30 disabled:hover:border-slate-700 disabled:hover:text-zinc-400 flex items-center justify-center"
+                  className="w-9 h-9 border border-slate-700 text-zinc-400 hover:border-accent hover:text-accent active:border-accent active:text-accent transition-colors disabled:opacity-30 disabled:hover:border-slate-700 disabled:hover:text-zinc-400 flex items-center justify-center"
                   aria-label="Decrement progress"
                 >
-                  <Minus size={11} />
+                  <Minus size={13} />
                 </button>
                 <button
                   type="button"
                   onClick={() => bump(goal, 1)}
                   disabled={isPending}
-                  className="w-6 h-6 border border-slate-700 text-zinc-400 hover:border-accent hover:text-accent transition-colors disabled:opacity-30 flex items-center justify-center"
+                  className="w-9 h-9 border border-slate-700 text-zinc-400 hover:border-accent hover:text-accent active:border-accent active:text-accent transition-colors disabled:opacity-30 flex items-center justify-center"
                   aria-label="Increment progress"
                 >
-                  <Plus size={11} />
+                  <Plus size={13} />
                 </button>
               </div>
               <button
                 type="button"
                 onClick={() => remove(goal.id)}
                 disabled={isPending}
-                className="ml-1 shrink-0 text-zinc-700 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+                className="shrink-0 w-9 h-9 flex items-center justify-center text-zinc-600 hover:text-red-400 active:text-red-400 transition-colors"
                 aria-label="Delete goal"
               >
-                <X size={12} />
+                <X size={14} />
               </button>
             </div>
             <div className="mt-2 h-0.5 bg-slate-800 relative overflow-hidden">

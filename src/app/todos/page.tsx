@@ -19,7 +19,7 @@ export default async function TodosPage() {
   return (
     <div className="min-h-screen bg-[#050d1c]">
       <TopNav />
-      <main className="px-3 pb-3 md:px-5 md:pb-5 max-w-3xl mx-auto" style={{ paddingTop: '3rem' }}>
+      <main className="app-page-top px-3 pb-3 md:px-5 md:pb-5 max-w-3xl mx-auto">
         {/* Page header */}
         <div className="mb-5">
           <div className="flex items-center gap-2 mb-2">

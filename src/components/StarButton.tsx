@@ -44,10 +44,10 @@ export default function StarButton({
       onClick={toggle}
       disabled={busy}
       aria-label={optimistic ? 'Unstar' : 'Star'}
-      className={`w-5 h-5 flex items-center justify-center transition-colors ${
+      className={`w-9 h-9 -m-2 flex items-center justify-center transition-colors ${
         optimistic
           ? 'text-amber-400 hover:text-amber-300'
-          : 'text-zinc-700 hover:text-zinc-400'
+          : 'text-zinc-600 hover:text-zinc-400 active:text-zinc-400'
       }`}
     >
       <Star

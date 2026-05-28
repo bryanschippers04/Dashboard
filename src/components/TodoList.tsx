@@ -78,7 +78,7 @@ export default function TodoList({ todos }: { todos: Todo[] }) {
         return (
           <li
             key={todo.id}
-            className={`group flex items-center gap-3 border border-slate-800 bg-[#0a1830] px-3 py-2.5 transition-opacity ${
+            className={`flex items-center gap-2 border border-slate-800 bg-[#0a1830] pl-1 pr-2 transition-opacity ${
               isPending ? 'opacity-50' : ''
             }`}
           >
@@ -86,18 +86,22 @@ export default function TodoList({ todos }: { todos: Todo[] }) {
               type="button"
               onClick={() => toggle(todo.id, todo.completed)}
               disabled={isPending}
-              className={`shrink-0 w-4 h-4 border flex items-center justify-center transition-colors ${
-                todo.completed
-                  ? 'bg-accent border-accent'
-                  : 'border-slate-600 hover:border-accent'
-              }`}
+              className="shrink-0 w-11 h-11 flex items-center justify-center"
               aria-label={todo.completed ? 'Mark as not done' : 'Mark as done'}
             >
-              {todo.completed && <Check size={10} className="text-[#050d1c]" strokeWidth={3} />}
+              <span
+                className={`w-5 h-5 border flex items-center justify-center transition-colors ${
+                  todo.completed
+                    ? 'bg-accent border-accent'
+                    : 'border-slate-500'
+                }`}
+              >
+                {todo.completed && <Check size={12} className="text-[#050d1c]" strokeWidth={3} />}
+              </span>
             </button>
 
             <span
-              className={`flex-1 text-sm transition-colors ${
+              className={`flex-1 text-sm transition-colors py-2.5 ${
                 todo.completed ? 'text-zinc-600 line-through' : 'text-zinc-200'
               }`}
             >
@@ -105,7 +109,7 @@ export default function TodoList({ todos }: { todos: Todo[] }) {
             </span>
 
             {due && (
-              <span className={`text-[10px] tracking-wider tabular-nums ${dueColor}`}>
+              <span className={`shrink-0 text-[10px] tracking-wider tabular-nums ${dueColor}`}>
                 {due.label}
               </span>
             )}
@@ -114,10 +118,10 @@ export default function TodoList({ todos }: { todos: Todo[] }) {
               type="button"
               onClick={() => remove(todo.id)}
               disabled={isPending}
-              className="shrink-0 text-zinc-700 hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
+              className="shrink-0 w-9 h-9 flex items-center justify-center text-zinc-600 hover:text-red-400 active:text-red-400 transition-colors"
               aria-label="Delete todo"
             >
-              <X size={12} />
+              <X size={14} />
             </button>
           </li>
         )

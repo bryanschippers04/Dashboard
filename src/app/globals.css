@@ -9,6 +9,9 @@
 
 html {
   background-color: #050d1c;
+  /* Disable iOS tap-highlight + auto text resize so the UI behaves like an app. */
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
@@ -19,6 +22,22 @@ body {
     radial-gradient(ellipse 80% 60% at 80% 0%, rgba(34, 211, 238, 0.06), transparent 60%),
     radial-gradient(ellipse 100% 80% at 20% 100%, rgba(14, 165, 233, 0.05), transparent 60%);
   background-attachment: fixed;
+  /* Respect iOS home-indicator at bottom. */
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* On phones, force inputs to >=16px so iOS Safari does not zoom on focus. */
+@media (max-width: 768px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+}
+
+/* Standard page top-padding: nav height + iOS notch + a small breathing gap. */
+.app-page-top {
+  padding-top: calc(env(safe-area-inset-top) + 3.5rem);
 }
 
 ::selection {
