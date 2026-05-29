@@ -2,17 +2,17 @@ import Link from 'next/link'
 import TopNav from '@/components/TopNav'
 import CalendarSyncButton from '@/components/CalendarSyncButton'
 import CalendarDisconnectButton from '@/components/CalendarDisconnectButton'
+import CalendarWeekStrip from '@/components/CalendarWeekStrip'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-
-interface EventRow {
-  id: string
-  summary: string | null
-  start_at: string | null
-  end_at: string | null
-  all_day: boolean
-  location: string | null
-}
+import {
+  type CalendarEventLite,
+  eventTimeLabel,
+  formatDayHeader,
+  formatShortDate,
+  groupByDay,
+  todayIso,
+} from '@/lib/calendarFormat'
 
 export default async function CalendarPage({
   searchParams,
@@ -42,6 +42,7 @@ export default async function CalendarPage({
   const startOfToday = new Date(now)
   startOfToday.setHours(0, 0, 0, 0)
   const cutoff = new Date(startOfToday.getTime() + 30 * 86400000)
+  const today = todayIso(now)
 
   const eventsRes = user
     ? await supabase
@@ -50,10 +51,16 @@ export default async function CalendarPage({
         .gte('start_at', startOfToday.toISOString())
         .lte('start_at', cutoff.toISOString())
         .order('start_at', { ascending: true })
-    : { data: [] as EventRow[] }
+    : { data: [] as CalendarEventLite[] }
 
-  const events = (eventsRes.data ?? []) as EventRow[]
+  const events = (eventsRes.data ?? []) as CalendarEventLite[]
   const grouped = groupByDay(events)
+  const todaysEvents = grouped.find((g) => g.day === today)?.items ?? []
+  const futureGroups = grouped.filter((g) => g.day !== today)
+
+  // Density counts per day for the week strip.
+  const counts: Record<string, number> = {}
+  for (const g of grouped) counts[g.day] = g.items.length
 
   return (
     <div className="min-h-screen bg-[#050d1c]">
@@ -61,7 +68,7 @@ export default async function CalendarPage({
       <main className="app-page-top px-3 pb-12 md:px-5 max-w-3xl mx-auto">
         <div className="mb-5">
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-[10px] text-zinc-600 tracking-widest">08 //</span>
+            <span className="text-[10px] text-zinc-600 tracking-widest">09 //</span>
             <span className="text-[10px] text-zinc-500 tracking-[0.2em]">
               CALENDAR
             </span>
@@ -111,17 +118,24 @@ export default async function CalendarPage({
               <CalendarDisconnectButton />
             </div>
 
-            {grouped.length === 0 ? (
+            <CalendarWeekStrip todayIso={today} counts={counts} />
+
+            <TodayBlock today={today} events={todaysEvents} now={now} />
+
+            {futureGroups.length === 0 ? (
               <p className="text-xs text-zinc-700 py-4">
-                No upcoming events in the next 30 days. Sync if you just added
-                some.
+                Nothing scheduled in the next 30 days.
               </p>
             ) : (
-              <div className="flex flex-col gap-6">
-                {grouped.map((g) => (
-                  <section key={g.day}>
+              <div className="flex flex-col gap-6 mt-6">
+                {futureGroups.map((g) => (
+                  <section
+                    key={g.day}
+                    id={`day-${g.day}`}
+                    className="scroll-mt-24"
+                  >
                     <p className="text-[10px] text-zinc-500 tracking-[0.2em] uppercase mb-2">
-                      {formatDayHeader(g.day)}
+                      {formatDayHeader(g.day, now)}
                     </p>
                     <div className="flex flex-col">
                       {g.items.map((e) => (
@@ -139,14 +153,96 @@ export default async function CalendarPage({
   )
 }
 
-function EventRow({ event }: { event: EventRow }) {
+function TodayBlock({
+  today,
+  events,
+  now,
+}: {
+  today: string
+  events: CalendarEventLite[]
+  now: Date
+}) {
+  const nowMs = now.getTime()
+  // Compute the index where `▸ now` slips in: first event whose start
+  // is in the future (or end is in the future, for events in progress).
+  let nowMarkerIdx = events.findIndex((e) => {
+    if (e.all_day) return false
+    const start = e.start_at ? new Date(e.start_at).getTime() : 0
+    return start >= nowMs
+  })
+  if (nowMarkerIdx === -1) nowMarkerIdx = events.length
+
+  // Only render the marker if today's events include both past and future
+  // — otherwise it's noise.
+  const hasPast = events.some((e) => {
+    if (e.all_day) return false
+    const end = e.end_at
+      ? new Date(e.end_at).getTime()
+      : e.start_at
+        ? new Date(e.start_at).getTime()
+        : 0
+    return end < nowMs
+  })
+  const hasFuture = nowMarkerIdx < events.length
+  const showMarker = hasPast && hasFuture
+
   return (
-    <div className="flex items-start gap-3 py-2 border-b border-slate-800 last:border-b-0">
-      <span className="w-14 shrink-0 text-[10px] text-zinc-600 tracking-wider tabular-nums pt-0.5">
-        {event.all_day ? 'ALL DAY' : formatTime(event.start_at)}
+    <section
+      id={`day-${today}`}
+      className="scroll-mt-24 border border-accent/40 bg-accent/[0.03] p-4"
+    >
+      <p className="text-[10px] text-accent tracking-[0.2em] uppercase mb-3">
+        Today · {formatShortDate(today)}
+      </p>
+      {events.length === 0 ? (
+        <p className="text-xs text-zinc-500">Nothing scheduled.</p>
+      ) : (
+        <div className="flex flex-col">
+          {events.map((e, i) => (
+            <div key={e.id}>
+              {showMarker && i === nowMarkerIdx && <NowMarker />}
+              <EventRow event={e} accent />
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function NowMarker() {
+  return (
+    <div className="flex items-center gap-2 py-1.5">
+      <span className="text-[10px] text-accent tracking-widest">▸ NOW</span>
+      <div className="flex-1 h-px bg-accent/40" />
+    </div>
+  )
+}
+
+function EventRow({
+  event,
+  accent = false,
+}: {
+  event: CalendarEventLite
+  accent?: boolean
+}) {
+  return (
+    <div
+      className={`flex items-start gap-3 py-2 ${
+        accent
+          ? 'border-b border-accent/15 last:border-b-0'
+          : 'border-b border-slate-800 last:border-b-0'
+      }`}
+    >
+      <span className="w-14 shrink-0 text-[10px] text-zinc-500 tracking-wider tabular-nums pt-0.5">
+        {eventTimeLabel(event)}
       </span>
       <div className="flex-1 min-w-0">
-        <p className="text-xs text-zinc-200 truncate">
+        <p
+          className={`text-xs truncate ${
+            accent ? 'text-zinc-100' : 'text-zinc-200'
+          }`}
+        >
           {event.summary ?? '(no title)'}
         </p>
         {event.location && (
@@ -157,39 +253,4 @@ function EventRow({ event }: { event: EventRow }) {
       </div>
     </div>
   )
-}
-
-function groupByDay(events: EventRow[]) {
-  const map = new Map<string, EventRow[]>()
-  for (const e of events) {
-    if (!e.start_at) continue
-    const day = e.start_at.slice(0, 10)
-    if (!map.has(day)) map.set(day, [])
-    map.get(day)!.push(e)
-  }
-  return Array.from(map.entries())
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .map(([day, items]) => ({ day, items }))
-}
-
-function formatDayHeader(day: string): string {
-  const d = new Date(day + 'T00:00:00')
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const diffDays = Math.round((d.getTime() - today.getTime()) / 86400000)
-  if (diffDays === 0) return 'Today'
-  if (diffDays === 1) return 'Tomorrow'
-  return d.toLocaleDateString('en-GB', {
-    weekday: 'short',
-    day: '2-digit',
-    month: 'short',
-  })
-}
-
-function formatTime(iso: string | null): string {
-  if (!iso) return ''
-  return new Date(iso).toLocaleTimeString('nl-NL', {
-    hour: '2-digit',
-    minute: '2-digit',
-  })
 }

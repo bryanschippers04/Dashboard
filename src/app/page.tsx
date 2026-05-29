@@ -3,6 +3,7 @@ import TopNav from '@/components/TopNav'
 import OperatorCard from '@/components/OperatorCard'
 import AssistantCard from '@/components/AssistantCard'
 import HabitsHomeCard from '@/components/HabitsHomeCard'
+import UpcomingCard from '@/components/UpcomingCard'
 import Card from '@/components/Card'
 import type { Goal } from '@/components/GoalList'
 import { createClient } from '@/lib/supabase/server'
@@ -535,6 +536,9 @@ export default async function DashboardPage() {
               </Link>
             </div>
           </Card>
+
+          {/* Upcoming (calendar) */}
+          <UpcomingCard />
         </div>
       </main>
     </div>
