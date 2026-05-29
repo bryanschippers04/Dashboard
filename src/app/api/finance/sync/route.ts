@@ -9,6 +9,7 @@ import {
 } from '@/lib/enableBanking'
 import { categorizeTransaction } from '@/lib/categorize'
 import { NextResponse } from 'next/server'
+import { hitRateLimit } from '@/lib/rateLimit'
 
 interface AccountResult {
   account_id: string
@@ -27,6 +28,9 @@ export async function POST() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const rate = await hitRateLimit(user.id, 'finance_sync')
+  if (!rate.ok) return rate.response
 
   const admin = createAdminClient()
 

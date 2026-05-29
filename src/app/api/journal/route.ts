@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import { compactJournal } from '@/lib/compactJournal'
 import { recordUsage } from '@/lib/usage'
 import { getUserModelOverrides } from '@/lib/models'
+import { hitRateLimit } from '@/lib/rateLimit'
 
 export const maxDuration = 30
 
@@ -33,6 +34,9 @@ export async function POST(request: Request) {
     data: { user },
   } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const rate = await hitRateLimit(user.id, 'journal')
+  if (!rate.ok) return rate.response
 
   const body = await request.json()
   const {

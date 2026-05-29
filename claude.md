@@ -46,6 +46,8 @@ All RLS enabled. Service-role-only tables have no client policies; the server us
 13\. \`user\_preferences\` \- user\_id (PK), model\_assistant, model\_insights\_weekly, model\_insights\_daily, model\_journal\_compact, updated\_at. Per-user Claude model overrides (NULL means use default). Read/write via \`getUserModelOverrides()\` / GET+PATCH \`/api/preferences\`. UI lives in the gear-icon dropdown. **RLS: service-role only.**  
 14\. \`calendar\_tokens\` \- user\_id (PK), access\_token, refresh\_token, expires\_at, scope, created\_at, updated\_at. Google OAuth tokens stored after the user connects their calendar. Refreshed in-place by \`getValidAccessToken()\`. **RLS: service-role only.**  
 15\. \`calendar\_events\` \- id, user\_id, google\_event\_id, calendar\_id ('primary'), summary, description, start\_at, end\_at, all\_day, location, status, synced\_at. Cached event copies pulled by \`/api/calendar/sync\` covering last 7d + next 30d. Unique on (user\_id, google\_event\_id). Read by the insights pipeline via \`getEventsInRange()\` so Claude can correlate mood × spending × schedule. **RLS: client SELECT only; service-role writes.**  
+16\. \`habits\` \- id, user\_id, title, cadence ('daily'/'weekly'/'monthly'), target\_count (>=1), active, sort\_order, created\_at. Recurring expectations distinct from todos (one-shot) and goals (count targets). **RLS: client read/write own row.**  
+17\. \`habit\_completions\` \- id, habit\_id (FK), user\_id, period\_key ('YYYY-MM-DD' / 'YYYY-Www' / 'YYYY-MM'), occurred\_at. One row per tick. Streak = count of contiguous periods where count(period\_key) ≥ target\_count. **RLS: client read/write own row.**  
 13\. \`screen\_time\` \- id, user\_id, duration\_minutes, app\_name, date. Not yet used (Day 6).
 
 Note: there is no \`public.users\` table. Foreign keys point at \`auth.users\` directly.
@@ -57,6 +59,7 @@ Note: there is no \`public.users\` table. Foreign keys point at \`auth.users\` d
 Journal: POST/GET/DELETE /api/journal — POST runs the raw text through Claude (\`compactJournal\`) and stores both text \+ text\_compact, plus an api\_usage row.  
 Todos: POST/GET/PATCH/DELETE /api/todos  
 Goals: POST/GET/PATCH/DELETE /api/goals  
+Habits: GET/POST /api/habits, PATCH/DELETE /api/habits/\[id\], POST/DELETE /api/habits/\[id\]/tick (tick = log completion in current period; DELETE = untick most recent in current period)  
 Finance \- connect: POST /api/finance/connect (starts Enable Banking authorisation)  
 Finance \- callback: GET /api/finance/callback (handles redirect from bank consent)  
 Finance \- sync: POST /api/finance/sync (pulls last 90d transactions per linked account)  
@@ -105,6 +108,7 @@ GMAIL\_CLIENT\_SECRET (later)
 \- /login       email/password sign-in / sign-up  
 \- /journal     voice journal entries  
 \- /todos       to-do CRUD \+ progress  
+\- /habits      daily / weekly / monthly sections; adaptive UI (checkbox when target=1, counter when target>1); streak badge; per-period completion logging via \`habit\_completions\`  
 \- /goals       three sections (daily/weekly/monthly) with \+/− quick increment  
 \- /finance     transactions, week/month spend tiles, 14-day bar chart, category breakdown (7d/30d/6mo/1y/all switcher), manual accounts, vaste lasten panel  
 \- /insights    starred library at top, weekly groups below with per-week distillation and daily insights interleaved; manual generate buttons for daily \+ weekly  
