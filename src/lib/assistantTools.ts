@@ -6,7 +6,7 @@
 // automatically — no other wiring needed.
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { getEventsInRange } from './calendarServer'
+import { createAndCacheEvent, getEventsInRange } from './calendarServer'
 import { getHabitsWithProgress } from './habitsServer'
 import { currentPeriodKey, type Cadence } from './habits'
 
@@ -322,6 +322,106 @@ const listUpcomingEvents: ToolEntry = {
   },
 }
 
+const createCalendarEventTool: ToolEntry = {
+  name: 'create_calendar_event',
+  description:
+    'Create an event on the user\'s primary Google Calendar. For timed events pass RFC3339 timestamps with timezone offset (e.g. "2026-06-04T15:00:00+02:00") in start_datetime/end_datetime. For all-day events pass YYYY-MM-DD in start_date/end_date — note Google treats end_date as EXCLUSIVE (a one-day event has end_date = start_date + 1). Confirm date/time with the user before calling if ambiguous.',
+  input_schema: {
+    type: 'object',
+    required: ['summary'],
+    properties: {
+      summary: {
+        type: 'string',
+        description: 'Event title — use the user\'s wording.',
+      },
+      start_datetime: {
+        type: 'string',
+        description:
+          'RFC3339 start for timed events, e.g. "2026-06-04T15:00:00+02:00". Mutually exclusive with start_date.',
+      },
+      end_datetime: {
+        type: 'string',
+        description:
+          'RFC3339 end for timed events. If omitted for a timed event, defaults to start + 1 hour.',
+      },
+      start_date: {
+        type: 'string',
+        description:
+          'YYYY-MM-DD start for all-day events. Mutually exclusive with start_datetime.',
+      },
+      end_date: {
+        type: 'string',
+        description:
+          'YYYY-MM-DD exclusive end for all-day events. Omit for a single-day event (server fills in start + 1 day).',
+      },
+      timezone: {
+        type: 'string',
+        description:
+          'IANA tz name for timed events (e.g. "Europe/Amsterdam"). Optional — Google will use the calendar\'s default if absent.',
+      },
+      location: { type: 'string' },
+      description: { type: 'string' },
+    },
+  },
+  async execute(input, { userId }) {
+    const summary = typeof input.summary === 'string' ? input.summary.trim() : ''
+    if (!summary) throw new Error('summary is required')
+
+    const startDt = typeof input.start_datetime === 'string' ? input.start_datetime : null
+    const endDt = typeof input.end_datetime === 'string' ? input.end_datetime : null
+    const startD = typeof input.start_date === 'string' ? input.start_date : null
+    const endD = typeof input.end_date === 'string' ? input.end_date : null
+    const tz = typeof input.timezone === 'string' ? input.timezone : undefined
+
+    let start: CreateEventInputStart
+    let end: CreateEventInputStart
+
+    if (startDt) {
+      const startMs = Date.parse(startDt)
+      if (Number.isNaN(startMs))
+        throw new Error('start_datetime must be RFC3339')
+      const endIso = endDt ?? new Date(startMs + 3600_000).toISOString()
+      start = { dateTime: startDt, timeZone: tz }
+      end = { dateTime: endIso, timeZone: tz }
+    } else if (startD) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(startD))
+        throw new Error('start_date must be YYYY-MM-DD')
+      let endDate = endD
+      if (!endDate) {
+        const d = new Date(startD + 'T00:00:00Z')
+        d.setUTCDate(d.getUTCDate() + 1)
+        endDate = d.toISOString().slice(0, 10)
+      }
+      start = { date: startD }
+      end = { date: endDate }
+    } else {
+      throw new Error('Provide either start_datetime or start_date')
+    }
+
+    const created = await createAndCacheEvent(userId, {
+      summary,
+      start,
+      end,
+      location:
+        typeof input.location === 'string' && input.location.trim()
+          ? input.location.trim()
+          : undefined,
+      description:
+        typeof input.description === 'string' && input.description.trim()
+          ? input.description.trim()
+          : undefined,
+    })
+    return {
+      id: created.id,
+      summary: created.summary,
+      start: created.start,
+      end: created.end,
+    }
+  },
+}
+
+type CreateEventInputStart = { dateTime?: string; date?: string; timeZone?: string }
+
 // ---------- Habits ----------
 
 const listHabits: ToolEntry = {
@@ -489,6 +589,7 @@ export const TOOLS: ToolEntry[] = [
   createJournalEntry,
   queryRecentSpending,
   listUpcomingEvents,
+  createCalendarEventTool,
   recallStarredInsights,
 ]
 

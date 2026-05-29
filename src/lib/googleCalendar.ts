@@ -1,12 +1,14 @@
 // Google Calendar OAuth + REST wrapper. Raw fetch only (no extra deps).
-// Read-only scope so we never mutate the user's calendar.
+// Scope is `calendar.events` — read + write on the user's own events.
+// The user has to re-consent once when the scope widens; existing
+// tokens become invalid and the connect-flow replaces them.
 
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 const TOKEN_URL = 'https://oauth2.googleapis.com/token'
 const EVENTS_URL =
   'https://www.googleapis.com/calendar/v3/calendars/primary/events'
 
-export const SCOPE = 'https://www.googleapis.com/auth/calendar.readonly'
+export const SCOPE = 'https://www.googleapis.com/auth/calendar.events'
 
 export const SYNC_BACK_DAYS = 7
 export const SYNC_FORWARD_DAYS = 30
@@ -170,4 +172,43 @@ export function normalizeEvent(e: GoogleEvent): NormalizedEvent {
     end_at: endStr,
     all_day: allDay,
   }
+}
+
+// ── Writes ───────────────────────────────────────────────────────────────
+
+export interface CreateEventInput {
+  summary: string
+  // For all-day events: provide YYYY-MM-DD on both start and end (end is exclusive — Google's convention).
+  // For timed events: provide RFC3339 timestamps with timezone offset, e.g. '2026-06-04T15:00:00+02:00'.
+  start: { dateTime?: string; date?: string; timeZone?: string }
+  end: { dateTime?: string; date?: string; timeZone?: string }
+  location?: string
+  description?: string
+}
+
+export async function createCalendarEvent(
+  accessToken: string,
+  input: CreateEventInput
+): Promise<GoogleEvent> {
+  const body: Record<string, unknown> = {
+    summary: input.summary,
+    start: input.start,
+    end: input.end,
+  }
+  if (input.location) body.location = input.location
+  if (input.description) body.description = input.description
+
+  const res = await fetch(EVENTS_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw new Error(`Google Calendar create failed (${res.status}): ${text}`)
+  }
+  return (await res.json()) as GoogleEvent
 }

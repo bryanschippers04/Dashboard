@@ -4,6 +4,7 @@ import OperatorCard from '@/components/OperatorCard'
 import AssistantCard from '@/components/AssistantCard'
 import HabitsHomeCard from '@/components/HabitsHomeCard'
 import UpcomingCard from '@/components/UpcomingCard'
+import AutoSync from '@/components/AutoSync'
 import Card from '@/components/Card'
 import type { Goal } from '@/components/GoalList'
 import { createClient } from '@/lib/supabase/server'
@@ -201,6 +202,7 @@ export default async function DashboardPage() {
   return (
     <div className="min-h-screen bg-[#050d1c]">
       <TopNav />
+      <AutoSync />
       <main className="app-page-top px-3 pb-3 md:px-5 md:pb-5">
         <div className="max-w-7xl mx-auto mb-3">
           <AssistantCard />

@@ -4,12 +4,15 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
+  createCalendarEvent,
+  type CreateEventInput,
   exchangeCodeForTokens,
   listEvents,
   normalizeEvent,
   refreshAccessToken,
   SYNC_BACK_DAYS,
   SYNC_FORWARD_DAYS,
+  type GoogleEvent,
   type NormalizedEvent,
 } from '@/lib/googleCalendar'
 
@@ -151,6 +154,42 @@ export async function syncCalendarEvents(userId: string): Promise<SyncResult> {
     upserted: rows.length,
     window: { from: timeMin.toISOString(), to: timeMax.toISOString() },
   }
+}
+
+/**
+ * Create an event on the user's primary Google Calendar AND mirror it
+ * into our local cache so the assistant sees it immediately (without
+ * waiting for the next sync).
+ */
+export async function createAndCacheEvent(
+  userId: string,
+  input: CreateEventInput
+): Promise<GoogleEvent> {
+  const accessToken = await getValidAccessToken(userId)
+  if (!accessToken) throw new Error('Calendar not connected.')
+
+  const created = await createCalendarEvent(accessToken, input)
+  const normalized = normalizeEvent(created)
+
+  const admin = createAdminClient()
+  await admin.from('calendar_events').upsert(
+    {
+      user_id: userId,
+      google_event_id: normalized.google_event_id,
+      calendar_id: 'primary',
+      summary: normalized.summary,
+      description: normalized.description,
+      location: normalized.location,
+      status: normalized.status,
+      start_at: normalized.start_at,
+      end_at: normalized.end_at,
+      all_day: normalized.all_day,
+      synced_at: new Date().toISOString(),
+    },
+    { onConflict: 'user_id,google_event_id' }
+  )
+
+  return created
 }
 
 /**
