@@ -36,7 +36,7 @@ export default function DayDetailModal({ iso, events, onClose }: Props) {
       ref={dialogRef}
       onClose={onClose}
       onClick={handleBackdropClick}
-      className="bg-[#0a1830] border border-slate-700 text-zinc-100 max-w-md w-[90vw] max-h-[80vh] p-0 backdrop:bg-black/70"
+      className="fixed inset-0 m-auto bg-[#0a1830] border border-slate-700 text-zinc-100 max-w-md w-[90vw] max-h-[80vh] p-0 backdrop:bg-black/70"
     >
       {iso && (
         <div className="flex flex-col max-h-[80vh]">
