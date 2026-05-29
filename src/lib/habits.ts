@@ -1,23 +1,35 @@
 // Period-key helpers + streak math for the habit tracker.
 // Period key format:
-//   daily   : YYYY-MM-DD     (local date)
-//   weekly  : YYYY-Www       (ISO week, Mon-start — matches getLastWeekRange)
-//   monthly : YYYY-MM
+//   daily   : YYYY-MM-DD     (logical day in Europe/Amsterdam, 4 AM cutoff)
+//   weekly  : YYYY-Www       (ISO week of the logical day, Mon-start)
+//   monthly : YYYY-MM        (month of the logical day)
+// The 4 AM cutoff (see src/lib/timezone.ts) means a tick at 02:00 NL
+// counts for the previous day / week / month — matches the journal
+// entry_date rule so "did I do my habits today" stays consistent
+// with how the user thinks about their day.
 // Sortable as strings, so the back-walk in streak math is just compare.
+
+import { logicalDateFor } from './timezone'
 
 export type Cadence = 'daily' | 'weekly' | 'monthly'
 
 export function currentPeriodKey(cadence: Cadence, now: Date = new Date()): string {
-  if (cadence === 'daily') return dailyKey(now)
-  if (cadence === 'monthly') return monthlyKey(now)
-  return isoWeekKey(now)
+  const logicalDay = logicalDateFor(now)
+  if (cadence === 'daily') return logicalDay
+  if (cadence === 'monthly') return logicalDay.slice(0, 7)
+  const [y, m, d] = logicalDay.split('-').map(Number)
+  return isoWeekKey(new Date(Date.UTC(y, m - 1, d)))
 }
 
 export function previousPeriodKey(cadence: Cadence, key: string): string {
   if (cadence === 'daily') {
-    const d = new Date(key + 'T00:00:00')
-    d.setDate(d.getDate() - 1)
-    return dailyKey(d)
+    // Operate on UTC fields so this is independent of server TZ.
+    const d = new Date(key + 'T00:00:00Z')
+    d.setUTCDate(d.getUTCDate() - 1)
+    const y = d.getUTCFullYear()
+    const m = String(d.getUTCMonth() + 1).padStart(2, '0')
+    const day = String(d.getUTCDate()).padStart(2, '0')
+    return `${y}-${m}-${day}`
   }
   if (cadence === 'monthly') {
     const [yStr, mStr] = key.split('-')
@@ -78,20 +90,9 @@ export function streakFromCompletions(
 
 // ---- internal date helpers ----
 
-function dailyKey(d: Date): string {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
-
-function monthlyKey(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-}
-
-/** ISO week with Mon-start. */
+/** ISO week with Mon-start. Operates on UTC fields so it's TZ-agnostic. */
 function isoWeekKey(d: Date): string {
-  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
+  const t = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
   // Move to Thursday of the current week (ISO weeks are based on Thursday).
   const dayNum = (t.getUTCDay() + 6) % 7 // Mon=0..Sun=6
   t.setUTCDate(t.getUTCDate() - dayNum + 3)
