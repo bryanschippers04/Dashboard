@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { runAndStoreWeekly } from '@/lib/insightsServer'
+import { safeEqual } from '@/lib/apiAuth'
 
 export const maxDuration = 60
 
@@ -15,8 +16,8 @@ async function handle(req: Request) {
       { status: 500 }
     )
   }
-  const auth = req.headers.get('authorization')
-  if (auth !== `Bearer ${expected}`) {
+  const auth = req.headers.get('authorization') ?? ''
+  if (!safeEqual(auth, `Bearer ${expected}`)) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -32,8 +33,9 @@ async function handle(req: Request) {
     const result = await runAndStoreWeekly(userId, '/api/insights/cron')
     return NextResponse.json(result)
   } catch (e) {
+    console.error('cron insights run failed:', e)
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : 'Cron run failed' },
+      { error: 'Cron run failed' },
       { status: 502 }
     )
   }

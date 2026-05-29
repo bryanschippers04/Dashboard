@@ -36,7 +36,8 @@ export async function POST() {
     .eq('user_id', user.id)
 
   if (accErr) {
-    return NextResponse.json({ error: accErr.message }, { status: 500 })
+    console.error('finance sync bank_accounts query failed:', accErr.message)
+    return NextResponse.json({ error: 'Database error' }, { status: 500 })
   }
   if (!accounts || accounts.length === 0) {
     return NextResponse.json({ error: 'No linked accounts' }, { status: 400 })

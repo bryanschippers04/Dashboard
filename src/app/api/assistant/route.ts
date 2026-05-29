@@ -27,8 +27,9 @@ export async function POST(request: Request) {
     const result = await runAssistant(user.id, messages)
     return NextResponse.json(result)
   } catch (e) {
+    console.error('assistant run failed:', e)
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : 'Assistant failed' },
+      { error: 'Assistant failed' },
       { status: 502 }
     )
   }

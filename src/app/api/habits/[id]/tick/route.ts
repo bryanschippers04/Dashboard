@@ -33,11 +33,12 @@ export async function POST(_req: Request, { params }: Ctx) {
     const { error } = await supabase
       .from('habit_completions')
       .insert({ habit_id: id, user_id: user.id, period_key: periodKey })
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) { console.error('habit_completions write failed:', error.message); return NextResponse.json({ error: 'Database error' }, { status: 500 }) }
     return NextResponse.json({ ticked: id, period_key: periodKey })
   } catch (e) {
+    console.error('habit tick failed:', e)
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : 'Failed' },
+      { error: 'Failed' },
       { status: 500 }
     )
   }
@@ -71,11 +72,12 @@ export async function DELETE(_req: Request, { params }: Ctx) {
       .delete()
       .eq('id', row.id)
       .eq('user_id', user.id)
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error) { console.error('habit_completions write failed:', error.message); return NextResponse.json({ error: 'Database error' }, { status: 500 }) }
     return NextResponse.json({ unticked: id, removed: 1, period_key: periodKey })
   } catch (e) {
+    console.error('habit tick failed:', e)
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : 'Failed' },
+      { error: 'Failed' },
       { status: 500 }
     )
   }

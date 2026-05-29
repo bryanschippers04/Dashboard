@@ -30,7 +30,7 @@ export async function PATCH(request: Request, { params }: Ctx) {
     .update({ is_starred: body.is_starred })
     .eq('id', id)
     .eq('user_id', user.id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) { console.error('insights write failed:', error.message); return NextResponse.json({ error: 'Database error' }, { status: 500 }) }
   return NextResponse.json({ id, is_starred: body.is_starred })
 }
 
@@ -48,6 +48,6 @@ export async function DELETE(_request: Request, { params }: Ctx) {
     .delete()
     .eq('id', id)
     .eq('user_id', user.id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) { console.error('insights write failed:', error.message); return NextResponse.json({ error: 'Database error' }, { status: 500 }) }
   return NextResponse.json({ success: true })
 }

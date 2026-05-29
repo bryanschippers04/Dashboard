@@ -9,12 +9,21 @@ export const maxDuration = 30
 
 export async function GET() {
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const { data, error } = await supabase
     .from('journal_entries')
     .select('*')
+    .eq('user_id', user.id)
     .order('timestamp', { ascending: false })
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('journal GET failed:', error.message)
+    return NextResponse.json({ error: 'Failed to load journal' }, { status: 500 })
+  }
   return NextResponse.json(data)
 }
 
@@ -103,6 +112,11 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const { searchParams } = new URL(request.url)
   const id = searchParams.get('id')
 
@@ -112,7 +126,11 @@ export async function DELETE(request: Request) {
     .from('journal_entries')
     .delete()
     .eq('id', id)
+    .eq('user_id', user.id)
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    console.error('journal DELETE failed:', error.message)
+    return NextResponse.json({ error: 'Failed to delete entry' }, { status: 500 })
+  }
   return NextResponse.json({ success: true })
 }

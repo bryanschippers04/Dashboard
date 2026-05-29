@@ -15,8 +15,9 @@ export async function POST() {
     const result = await syncCalendarEvents(user.id)
     return NextResponse.json(result)
   } catch (e) {
+    console.error('calendar sync failed:', e)
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : 'Sync failed' },
+      { error: 'Sync failed' },
       { status: 502 }
     )
   }

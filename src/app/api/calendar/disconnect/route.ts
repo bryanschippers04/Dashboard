@@ -13,8 +13,9 @@ export async function DELETE() {
     await deleteTokens(user.id)
     return NextResponse.json({ success: true })
   } catch (e) {
+    console.error('calendar disconnect failed:', e)
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : 'Disconnect failed' },
+      { error: 'Disconnect failed' },
       { status: 500 }
     )
   }

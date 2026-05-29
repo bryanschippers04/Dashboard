@@ -18,8 +18,9 @@ export async function GET() {
     const habits = await getHabitsWithProgress(admin, user.id)
     return NextResponse.json({ habits })
   } catch (e) {
+    console.error('habits GET failed:', e)
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : 'Failed' },
+      { error: 'Failed to load habits' },
       { status: 500 }
     )
   }
@@ -55,6 +56,6 @@ export async function POST(request: Request) {
     .insert({ user_id: user.id, title, cadence, target_count })
     .select('id, title, cadence, target_count, active, sort_order')
     .single()
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) { console.error('habits query failed:', error.message); return NextResponse.json({ error: 'Database error' }, { status: 500 }) }
   return NextResponse.json(data, { status: 201 })
 }

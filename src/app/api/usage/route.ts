@@ -30,7 +30,7 @@ export async function GET() {
     .from('api_usage')
     .select('endpoint, cost_usd, input_tokens, output_tokens, model, created_at')
     .eq('user_id', user.id)
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) { console.error('api_usage query failed:', error.message); return NextResponse.json({ error: 'Database error' }, { status: 500 }) }
 
   const rows = ((data ?? []) as UsageRow[]).map((r) => ({
     ...r,

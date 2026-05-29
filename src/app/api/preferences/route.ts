@@ -74,7 +74,7 @@ export async function PATCH(request: Request) {
   const { error } = await admin
     .from('user_preferences')
     .upsert(updates, { onConflict: 'user_id' })
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) { console.error('preferences upsert failed:', error.message); return NextResponse.json({ error: 'Database error' }, { status: 500 }) }
 
   const overrides = await getUserModelOverrides(admin, user.id)
   return NextResponse.json({ overrides })

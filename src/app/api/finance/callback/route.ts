@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createSession } from '@/lib/enableBanking'
 import { NextResponse } from 'next/server'
+import { safeEqual } from '@/lib/apiAuth'
 
 const STATE_COOKIE = 'eb_auth_state'
 
@@ -38,7 +39,7 @@ export async function GET(request: Request) {
     .find((c) => c.startsWith(`${STATE_COOKIE}=`))
     ?.split('=')[1]
 
-  if (!cookieState || !state || cookieState !== state) {
+  if (!safeEqual(cookieState, state)) {
     return NextResponse.redirect(financeUrl(`?error=state_mismatch`))
   }
 

@@ -15,8 +15,9 @@ export async function POST() {
     const result = await runAndStoreWeekly(user.id)
     return NextResponse.json(result)
   } catch (e) {
+    console.error('weekly insights run failed:', e)
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : 'Weekly run failed' },
+      { error: 'Weekly run failed' },
       { status: 502 }
     )
   }

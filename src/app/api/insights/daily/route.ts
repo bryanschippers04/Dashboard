@@ -15,8 +15,9 @@ export async function POST() {
     const result = await runAndStoreDaily(user.id)
     return NextResponse.json(result)
   } catch (e) {
+    console.error('daily insights run failed:', e)
     return NextResponse.json(
-      { error: e instanceof Error ? e.message : 'Daily run failed' },
+      { error: 'Daily run failed' },
       { status: 502 }
     )
   }
