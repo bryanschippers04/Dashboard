@@ -42,3 +42,14 @@ Deliberately deferred to the end of the MVP per the "polish later" decision. Ite
 - **Rotate Anthropic API key** — original `sk-ant-...` key was pasted in chat early in the project. Rotated once; if any concern remains, rotate again. _(2026-05-27)_
 - **Rotate Enable Banking private key** — the first sandbox `.pem` was exposed in chat. Production key is currently in use; regenerate if concerned. _(2026-05-27)_
 - **Consolidate migrations** — once the schema stabilises, a single `current-schema.sql` baseline file could replace the dated migrations (or sit alongside them as a "fresh setup" shortcut). _(2026-05-28)_
+
+## 2026-05-29 audit findings (overnight speed + security pass)
+
+Items I deliberately did NOT do during the autonomous overnight run because they have non-trivial risk and benefit from a human-in-the-loop check.
+
+- **Optimistic UI for todos/goals/habits** — today each interaction does `setPending → mutation → router.refresh()`, forcing a full RSC re-render before the box re-renders. `useOptimistic` (React 19) would give instant feedback with rollback on failure. Biggest perceived-smoothness win. Risk: rollback behaviour on network failure / race with stale data. Test on real interactions before merging.
+- **Finance page transaction window** — `/finance` pulls ALL transactions to feed the category breakdown's "ALL" range toggle. Fine today, will get slow at thousands. Refactor: default to last 1 year, lazy-fetch older when the user picks ALL.
+- **CSP host allowlist tuning** — current list covers Anthropic / Google OAuth / Enable Banking / Supabase. Anything new (analytics, fonts CDN) will be blocked. Watch the browser console's CSP violations for a week and add hosts.
+- **`postcss < 8.5.10` advisory (GHSA-qx2v-qp2m-jg93)** — bundled inside `next@16.2.6`. Exploitable only when stringifying untrusted CSS, which Tailwind doesn't do — non-exploitable here. Watch for a next patch.
+- **`api_rate_limits` window pruning** — old rows accumulate forever. Add a Supabase cron or a self-prune inside `hitRateLimit()` if the table grows past ~10k rows.
+- **Lint rule `react-hooks/set-state-in-effect`** is over-strict for the canonical "fetch on open" pattern used in `UsageBadge`. We rule-disabled it locally. If more cases come up, consider downgrading the rule project-wide in `eslint.config.mjs`.
