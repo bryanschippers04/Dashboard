@@ -5,11 +5,9 @@ import { Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 
-type GoalType = 'daily' | 'weekly' | 'monthly'
-
 export default function GoalForm() {
   const [title, setTitle] = useState('')
-  const [type, setType] = useState<GoalType>('daily')
+  const [deadline, setDeadline] = useState('')
   const [target, setTarget] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
@@ -33,7 +31,7 @@ export default function GoalForm() {
     const { error: dbError } = await supabase.from('goals').insert({
       user_id: user.id,
       title: title.trim(),
-      type,
+      deadline: deadline || null,
       target: targetNum,
     })
 
@@ -44,7 +42,7 @@ export default function GoalForm() {
     }
 
     setTitle('')
-    setType('daily')
+    setDeadline('')
     setTarget('')
     setSubmitting(false)
     router.refresh()
@@ -65,15 +63,13 @@ export default function GoalForm() {
         className="flex-1 bg-transparent text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none px-2 py-1.5"
         required
       />
-      <select
-        value={type}
-        onChange={(e) => setType(e.target.value as GoalType)}
-        className="bg-[#050d1c] border border-slate-800 text-xs text-zinc-400 px-2 py-1.5 focus:outline-none focus:border-slate-600 uppercase tracking-wider"
-      >
-        <option value="daily">Daily</option>
-        <option value="weekly">Weekly</option>
-        <option value="monthly">Monthly</option>
-      </select>
+      <input
+        type="date"
+        value={deadline}
+        onChange={(e) => setDeadline(e.target.value)}
+        className="bg-[#050d1c] border border-slate-800 text-xs text-zinc-300 px-2 py-1.5 focus:outline-none focus:border-slate-600 tabular-nums"
+        aria-label="Deadline (optional)"
+      />
       <input
         type="number"
         min={1}

@@ -4,11 +4,12 @@ import { useState, useTransition } from 'react'
 import { Minus, Plus, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { formatDeadline, bucketFor } from '@/lib/goalBuckets'
 
 export interface Goal {
   id: string
   title: string
-  type: 'daily' | 'weekly' | 'monthly'
+  deadline: string | null
   target: number
   current_progress: number
 }
@@ -68,6 +69,8 @@ export default function GoalList({ goals }: { goals: Goal[] }) {
         const achieved = displayed >= goal.target
         const pct = goal.target > 0 ? (displayed / goal.target) * 100 : 0
         const cappedPct = Math.min(100, pct)
+        const overdue = bucketFor(goal.deadline) === 'overdue'
+        const deadlineLabel = formatDeadline(goal.deadline)
 
         return (
           <li
@@ -77,7 +80,16 @@ export default function GoalList({ goals }: { goals: Goal[] }) {
             }`}
           >
             <div className="flex items-center gap-3">
-              <span className="flex-1 text-sm text-zinc-200 truncate">{goal.title}</span>
+              <div className="flex-1 min-w-0">
+                <span className="block text-sm text-zinc-200 truncate">{goal.title}</span>
+                <span
+                  className={`block text-[10px] tracking-wider tabular-nums ${
+                    overdue ? 'text-rose-400' : 'text-zinc-600'
+                  }`}
+                >
+                  {deadlineLabel}
+                </span>
+              </div>
               <span
                 className={`text-[11px] tabular-nums tracking-wider ${
                   achieved ? 'text-emerald-400' : 'text-zinc-400'

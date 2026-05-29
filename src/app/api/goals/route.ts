@@ -1,10 +1,9 @@
 import { NextResponse } from 'next/server'
 import { requireUser } from '@/lib/apiAuth'
 
-const VALID_TYPES = ['daily', 'weekly', 'monthly'] as const
-type GoalType = (typeof VALID_TYPES)[number]
 const MAX_TITLE = 500
 const MAX_TARGET = 100_000
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
 export async function GET() {
   const auth = await requireUser()
@@ -15,8 +14,7 @@ export async function GET() {
     .from('goals')
     .select('*')
     .eq('user_id', user.id)
-    .order('type', { ascending: true })
-    .order('current_progress', { ascending: true })
+    .order('deadline', { ascending: true, nullsFirst: false })
     .order('id', { ascending: true })
 
   if (error) {
@@ -32,13 +30,21 @@ export async function POST(request: Request) {
   const { supabase, user } = auth
 
   const body = await request.json().catch(() => ({}))
-  const { title, type, target } = body as { title?: unknown; type?: unknown; target?: unknown }
+  const { title, deadline, target } = body as {
+    title?: unknown
+    deadline?: unknown
+    target?: unknown
+  }
 
   if (typeof title !== 'string' || !title.trim() || title.length > MAX_TITLE) {
     return NextResponse.json({ error: 'Title required (max 500 chars)' }, { status: 400 })
   }
-  if (typeof type !== 'string' || !VALID_TYPES.includes(type as GoalType)) {
-    return NextResponse.json({ error: 'Invalid type' }, { status: 400 })
+  let deadlineValue: string | null = null
+  if (deadline !== undefined && deadline !== null && deadline !== '') {
+    if (typeof deadline !== 'string' || !DATE_RE.test(deadline)) {
+      return NextResponse.json({ error: 'deadline must be YYYY-MM-DD' }, { status: 400 })
+    }
+    deadlineValue = deadline
   }
   const targetNum = Number(target)
   if (!Number.isInteger(targetNum) || targetNum < 1 || targetNum > MAX_TARGET) {
@@ -50,7 +56,7 @@ export async function POST(request: Request) {
     .insert({
       user_id: user.id,
       title: title.trim(),
-      type,
+      deadline: deadlineValue,
       target: targetNum,
     })
     .select()

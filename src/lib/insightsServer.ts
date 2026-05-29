@@ -121,7 +121,7 @@ export async function runAndStoreWeekly(
         .lte('date', weekEnd),
       admin
         .from('goals')
-        .select('title, type, target, current_progress')
+        .select('title, deadline, target, current_progress')
         .eq('user_id', userId),
       getInsightsMemory(admin, userId),
       getEventsInRange(userId, start, end).catch(() => []),
@@ -212,7 +212,7 @@ export async function runAndStoreDaily(
         .eq('date', day),
       admin
         .from('goals')
-        .select('title, type, target, current_progress')
+        .select('title, deadline, target, current_progress')
         .eq('user_id', userId),
       getInsightsMemory(admin, userId),
       getEventsInRange(userId, start, end).catch(() => []),

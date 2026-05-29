@@ -39,7 +39,7 @@ export interface ScreenTimeInput {
 
 export interface GoalInput {
   title: string
-  type: string
+  deadline: string | null
   target: number | string
   current_progress: number | string
 }
@@ -122,7 +122,8 @@ export interface WeekPayload {
   }
   goals: Array<{
     title: string
-    type: string
+    deadline: string | null
+    days_until: number | null
     target: number
     current: number
     percent: number | null
@@ -273,12 +274,23 @@ function buildScreenTime(entries: ScreenTimeInput[]) {
 }
 
 function buildGoals(goals: GoalInput[]) {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
   return goals.map(g => {
     const target = Number(g.target) || 0
     const current = Number(g.current_progress) || 0
+    let daysUntil: number | null = null
+    if (g.deadline) {
+      const m = g.deadline.match(/^(\d{4})-(\d{2})-(\d{2})/)
+      if (m) {
+        const due = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+        daysUntil = Math.round((due.getTime() - today.getTime()) / 86400000)
+      }
+    }
     return {
       title: g.title,
-      type: g.type,
+      deadline: g.deadline ?? null,
+      days_until: daysUntil,
       target,
       current,
       percent: target > 0 ? Math.round((current / target) * 100) : null

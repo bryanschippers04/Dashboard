@@ -141,12 +141,13 @@ const deleteTodo: ToolEntry = {
 
 const listGoals: ToolEntry = {
   name: 'list_goals',
-  description: 'List the user\'s goals with target and current progress.',
+  description:
+    'List the user\'s goals with target, current progress, and deadline (YYYY-MM-DD or null). Goals are aspirational targets ordered by deadline urgency; recurring expectations live in habits instead.',
   input_schema: { type: 'object', properties: {} },
   async execute(_input, { admin, userId }) {
     const { data, error } = await admin
       .from('goals')
-      .select('id, title, type, target, current_progress')
+      .select('id, title, deadline, target, current_progress')
       .eq('user_id', userId)
     if (error) throw new Error(error.message)
     return { goals: data ?? [] }

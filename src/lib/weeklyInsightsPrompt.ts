@@ -15,7 +15,7 @@ VOICE
 WHAT TO LOOK FOR
 - Correlations between behaviors and journal rating/mood_tags.
 - Trends vs. last week (did the pattern persist? did last week's recommended action stick?).
-- Goal slippage and what tends to precede it.
+- Goal slippage and what tends to precede it. Each goal carries a "deadline" date and "days_until" — negative values are overdue. Flag goals whose deadline is close while progress is far behind.
 - Spending patterns that don't match his stated priorities.
 - Days that stand out — what was different?
 

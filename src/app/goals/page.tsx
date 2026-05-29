@@ -3,36 +3,32 @@ import TopNav from '@/components/TopNav'
 import GoalForm from '@/components/GoalForm'
 import GoalList, { type Goal } from '@/components/GoalList'
 import { createClient } from '@/lib/supabase/server'
-
-const PERIOD_ORDER: Goal['type'][] = ['daily', 'weekly', 'monthly']
-const PERIOD_LABELS: Record<Goal['type'], string> = {
-  daily: 'DAILY',
-  weekly: 'WEEKLY',
-  monthly: 'MONTHLY',
-}
-const EMPTY_HINTS: Record<Goal['type'], string> = {
-  daily: 'No daily goals yet.',
-  weekly: 'No weekly goals yet.',
-  monthly: 'No monthly goals yet.',
-}
-
-function pct(g: Goal) {
-  return g.target > 0 ? (g.current_progress / g.target) * 100 : 0
-}
+import {
+  BUCKET_LABELS,
+  BUCKET_ORDER,
+  bucketFor,
+  compareByDeadline,
+  type GoalBucket,
+} from '@/lib/goalBuckets'
 
 export default async function GoalsPage() {
   const supabase = await createClient()
   const { data } = await supabase
     .from('goals')
-    .select('id, title, type, target, current_progress')
+    .select('id, title, deadline, target, current_progress')
 
   const goals = (data ?? []) as Goal[]
 
-  // Section sort: least-progressed first (action-oriented).
-  const grouped: Record<Goal['type'], Goal[]> = { daily: [], weekly: [], monthly: [] }
-  for (const g of goals) grouped[g.type]?.push(g)
-  for (const type of PERIOD_ORDER) {
-    grouped[type].sort((a, b) => pct(a) - pct(b))
+  const grouped: Record<GoalBucket, Goal[]> = {
+    overdue: [],
+    week: [],
+    month: [],
+    later: [],
+    undated: [],
+  }
+  for (const g of goals) grouped[bucketFor(g.deadline)].push(g)
+  for (const bucket of BUCKET_ORDER) {
+    grouped[bucket].sort((a, b) => compareByDeadline(a.deadline, b.deadline))
   }
 
   const valid = goals.filter((g) => g.target > 0)
@@ -82,26 +78,31 @@ export default async function GoalsPage() {
         <GoalForm />
 
         <div className="mt-6 flex flex-col gap-6">
-          {PERIOD_ORDER.map((type) => {
-            const items = grouped[type]
-            return (
-              <section key={type}>
-                <div className="flex items-baseline gap-2 mb-2">
-                  <p className="text-[10px] text-zinc-500 tracking-[0.2em]">
-                    {PERIOD_LABELS[type]}
-                  </p>
-                  {items.length > 0 && (
-                    <span className="text-[10px] text-zinc-700 tabular-nums">· {items.length}</span>
-                  )}
-                </div>
-                {items.length === 0 ? (
-                  <p className="text-xs text-zinc-700 py-2">{EMPTY_HINTS[type]}</p>
-                ) : (
+          {goals.length === 0 ? (
+            <p className="text-xs text-zinc-700 py-2">No goals yet. Add one above.</p>
+          ) : (
+            BUCKET_ORDER.map((bucket) => {
+              const items = grouped[bucket]
+              if (items.length === 0) return null
+              return (
+                <section key={bucket}>
+                  <div className="flex items-baseline gap-2 mb-2">
+                    <p
+                      className={`text-[10px] tracking-[0.2em] ${
+                        bucket === 'overdue' ? 'text-rose-400' : 'text-zinc-500'
+                      }`}
+                    >
+                      {BUCKET_LABELS[bucket]}
+                    </p>
+                    <span className="text-[10px] text-zinc-700 tabular-nums">
+                      · {items.length}
+                    </span>
+                  </div>
                   <GoalList goals={items} />
-                )}
-              </section>
-            )
-          })}
+                </section>
+              )
+            })
+          )}
         </div>
       </main>
     </div>

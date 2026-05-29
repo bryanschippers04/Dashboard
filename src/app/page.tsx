@@ -8,6 +8,12 @@ import type { Goal } from '@/components/GoalList'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
+  BUCKET_ORDER,
+  bucketFor,
+  compareByDeadline,
+  formatDeadline,
+} from '@/lib/goalBuckets'
+import {
   buildBankIbanSet,
   derivedBalance,
   isSelfTransfer,
@@ -60,7 +66,7 @@ export default async function DashboardPage() {
       .select('id, title, completed, due_date'),
     supabase
       .from('goals')
-      .select('id, title, type, target, current_progress'),
+      .select('id, title, deadline, target, current_progress'),
     user
       ? admin
           .from('bank_accounts')
@@ -115,11 +121,18 @@ export default async function DashboardPage() {
 
   const goals = (allGoals ?? []) as Goal[]
   const goalPct = (g: Goal) => (g.target > 0 ? (g.current_progress / g.target) * 100 : 0)
-  // Home card sort: MOST-progressed first (celebratory).
-  // Note: the /goals page sorts the opposite way (least first, action-oriented).
+  // Home card sort: soonest deadline first (urgency-driven, mirrors /goals).
+  const bucketRank: Record<string, number> = Object.fromEntries(
+    BUCKET_ORDER.map((b, i) => [b, i])
+  )
   const activeGoals = goals
     .filter((g) => g.target > 0 && g.current_progress < g.target)
-    .sort((a, b) => goalPct(b) - goalPct(a))
+    .sort((a, b) => {
+      const ra = bucketRank[bucketFor(a.deadline)]
+      const rb = bucketRank[bucketFor(b.deadline)]
+      if (ra !== rb) return ra - rb
+      return compareByDeadline(a.deadline, b.deadline)
+    })
     .slice(0, 3)
   const validGoals = goals.filter((g) => g.target > 0)
   const goalTotalTarget = validGoals.reduce((s, g) => s + g.target, 0)
@@ -327,12 +340,22 @@ export default async function DashboardPage() {
                 <div className="space-y-2.5">
                   {activeGoals.map((g) => {
                     const pct = Math.min(100, goalPct(g))
+                    const overdue = bucketFor(g.deadline) === 'overdue'
                     return (
                       <div key={g.id}>
                         <div className="flex items-center justify-between gap-2 mb-1">
                           <span className="text-xs text-zinc-400 truncate">{g.title}</span>
                           <span className="text-[10px] text-zinc-500 tabular-nums shrink-0">
                             {g.current_progress}/{g.target}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span
+                            className={`text-[10px] tracking-wider tabular-nums ${
+                              overdue ? 'text-rose-400' : 'text-zinc-600'
+                            }`}
+                          >
+                            {formatDeadline(g.deadline)}
                           </span>
                         </div>
                         <div className="h-0.5 bg-slate-800 relative overflow-hidden">
