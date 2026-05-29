@@ -20,7 +20,7 @@ export default async function HabitsHomeCard() {
 
   return (
     <Card
-      number="05"
+      number="03"
       label="HABITS"
       action={
         <Link

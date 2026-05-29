@@ -34,7 +34,7 @@ export default async function UpcomingCard() {
   if (!connected) {
     return (
       <Card
-        number="09"
+        number="02"
         label="UPCOMING"
         action={
           <Link
@@ -93,7 +93,7 @@ export default async function UpcomingCard() {
 
   return (
     <Card
-      number="09"
+      number="02"
       label="UPCOMING"
       action={
         <Link

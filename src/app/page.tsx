@@ -1,6 +1,5 @@
 import Link from 'next/link'
 import TopNav from '@/components/TopNav'
-import OperatorCard from '@/components/OperatorCard'
 import AssistantCard from '@/components/AssistantCard'
 import HabitsHomeCard from '@/components/HabitsHomeCard'
 import UpcomingCard from '@/components/UpcomingCard'
@@ -208,57 +207,9 @@ export default async function DashboardPage() {
           <AssistantCard />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-w-7xl mx-auto">
-          <OperatorCard />
-
-          {/* Journal */}
-          <Card
-            number="03"
-            label="JOURNAL"
-            action={
-              <Link
-                href="/journal"
-                className="text-[10px] text-zinc-600 hover:text-zinc-300 tracking-widest transition-colors"
-              >
-                OPEN →
-              </Link>
-            }
-          >
-            <div>
-              <div className="flex items-baseline gap-2 mb-4">
-                <span className="text-3xl text-zinc-100 tabular-nums">
-                  {journalCount ?? 0}
-                </span>
-                <span className="text-[10px] text-zinc-600">ENTRIES</span>
-              </div>
-              {lastEntry ? (
-                <div>
-                  <p className="text-[10px] text-zinc-600 mb-1 tracking-wider">LAST ENTRY</p>
-                  <p className="text-xs text-zinc-400">
-                    {new Date(lastEntry.timestamp).toLocaleDateString('en-GB', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: '2-digit',
-                    })}
-                    {lastEntry.rating !== null && (
-                      <span className="text-accent ml-2">· {lastEntry.rating}/10</span>
-                    )}
-                  </p>
-                </div>
-              ) : (
-                <p className="text-xs text-zinc-700">Start with one.</p>
-              )}
-              <Link
-                href="/journal"
-                className="mt-5 block text-[10px] text-zinc-700 hover:text-accent transition-colors tracking-widest"
-              >
-                + NEW ENTRY
-              </Link>
-            </div>
-          </Card>
-
           {/* Tasks */}
           <Card
-            number="04"
+            number="01"
             label="TODAY · KEY"
             action={
               <Link
@@ -306,85 +257,82 @@ export default async function DashboardPage() {
             </div>
           </Card>
 
+          {/* Upcoming (calendar) */}
+          <UpcomingCard />
+
           {/* Habits */}
           <HabitsHomeCard />
 
-          {/* Goals */}
+          {/* Insights */}
           <Card
-            number="06"
-            label="GOALS"
+            number="04"
+            label="INSIGHTS"
             action={
               <Link
-                href="/goals"
+                href="/insights"
                 className="text-[10px] text-zinc-600 hover:text-zinc-300 tracking-widest transition-colors"
               >
                 OPEN →
               </Link>
             }
           >
-            <div>
-              <div className="flex items-baseline justify-between mb-3">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl text-zinc-100 tabular-nums">
-                    {activeGoals.length}
-                  </span>
-                  <span className="text-[10px] text-zinc-600">ACTIVE</span>
-                </div>
-                {goals.length > 0 && (
-                  <span className="text-[10px] text-accent tabular-nums">{goalsOverallPct}%</span>
+            <div className="flex flex-col gap-4">
+              <div>
+                <p className="text-[10px] text-zinc-600 tracking-wider mb-2">
+                  WEEK SUMMARY
+                </p>
+                {distillation ? (
+                  <p className="text-xs text-zinc-400 italic leading-relaxed">
+                    {distillation.summary}
+                  </p>
+                ) : (
+                  <p className="text-xs text-zinc-700">
+                    Run weekly insights to generate your first summary.
+                  </p>
                 )}
               </div>
 
-              {goals.length === 0 ? (
-                <p className="text-xs text-zinc-700">Add your first goal.</p>
-              ) : activeGoals.length === 0 ? (
-                <p className="text-xs text-emerald-400">All goals reached.</p>
-              ) : (
-                <div className="space-y-2.5">
-                  {activeGoals.map((g) => {
-                    const pct = Math.min(100, goalPct(g))
-                    const overdue = bucketFor(g.deadline) === 'overdue'
-                    return (
-                      <div key={g.id}>
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <span className="text-xs text-zinc-400 truncate">{g.title}</span>
-                          <span className="text-[10px] text-zinc-500 tabular-nums shrink-0">
-                            {g.current_progress}/{g.target}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                          <span
-                            className={`text-[10px] tracking-wider tabular-nums ${
-                              overdue ? 'text-rose-400' : 'text-zinc-600'
-                            }`}
-                          >
-                            {formatDeadline(g.deadline)}
-                          </span>
-                        </div>
-                        <div className="h-0.5 bg-slate-800 relative overflow-hidden">
-                          <div
-                            className="absolute left-0 top-0 h-full bg-accent transition-all duration-300"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
+              <div>
+                <p className="text-[10px] text-amber-400/80 tracking-wider mb-2">
+                  ★ FROM LIBRARY
+                </p>
+                {randomStarred ? (
+                  <div>
+                    <p className="text-xs text-zinc-200 leading-snug mb-1">
+                      {randomStarred.title ??
+                        randomStarred.content?.split('\n')[0] ??
+                        ''}
+                    </p>
+                    {randomStarred.body && (
+                      <p className="text-[11px] text-zinc-500 leading-relaxed line-clamp-2">
+                        {randomStarred.body}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs text-zinc-700">
+                    Star insights on /insights to build your library.
+                  </p>
+                )}
+              </div>
 
               <Link
-                href="/goals"
-                className="mt-4 block text-[10px] text-zinc-700 hover:text-accent transition-colors tracking-widest"
+                href="/insights"
+                className="text-[10px] text-zinc-700 hover:text-accent transition-colors tracking-widest"
               >
-                + NEW GOAL
+                OPEN INSIGHTS →
               </Link>
             </div>
           </Card>
 
+          {/* Reserved slot — placeholder for a block to be built later */}
+          <Card number="05" label="—">
+            <p className="text-[10px] text-zinc-700 tracking-widest">RESERVED</p>
+          </Card>
+
           {/* Finance */}
           <Card
-            number="07"
+            number="06"
             label="FINANCE PULSE"
             action={
               <Link
@@ -477,70 +425,124 @@ export default async function DashboardPage() {
             )}
           </Card>
 
-          {/* Insights */}
+          {/* Goals */}
           <Card
-            number="08"
-            label="INSIGHTS"
+            number="07"
+            label="GOALS"
             action={
               <Link
-                href="/insights"
+                href="/goals"
                 className="text-[10px] text-zinc-600 hover:text-zinc-300 tracking-widest transition-colors"
               >
                 OPEN →
               </Link>
             }
           >
-            <div className="flex flex-col gap-4">
-              <div>
-                <p className="text-[10px] text-zinc-600 tracking-wider mb-2">
-                  WEEK SUMMARY
-                </p>
-                {distillation ? (
-                  <p className="text-xs text-zinc-400 italic leading-relaxed">
-                    {distillation.summary}
-                  </p>
-                ) : (
-                  <p className="text-xs text-zinc-700">
-                    Run weekly insights to generate your first summary.
-                  </p>
+            <div>
+              <div className="flex items-baseline justify-between mb-3">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl text-zinc-100 tabular-nums">
+                    {activeGoals.length}
+                  </span>
+                  <span className="text-[10px] text-zinc-600">ACTIVE</span>
+                </div>
+                {goals.length > 0 && (
+                  <span className="text-[10px] text-accent tabular-nums">{goalsOverallPct}%</span>
                 )}
               </div>
 
-              <div>
-                <p className="text-[10px] text-amber-400/80 tracking-wider mb-2">
-                  ★ FROM LIBRARY
-                </p>
-                {randomStarred ? (
-                  <div>
-                    <p className="text-xs text-zinc-200 leading-snug mb-1">
-                      {randomStarred.title ??
-                        randomStarred.content?.split('\n')[0] ??
-                        ''}
-                    </p>
-                    {randomStarred.body && (
-                      <p className="text-[11px] text-zinc-500 leading-relaxed line-clamp-2">
-                        {randomStarred.body}
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-xs text-zinc-700">
-                    Star insights on /insights to build your library.
-                  </p>
-                )}
-              </div>
+              {goals.length === 0 ? (
+                <p className="text-xs text-zinc-700">Add your first goal.</p>
+              ) : activeGoals.length === 0 ? (
+                <p className="text-xs text-emerald-400">All goals reached.</p>
+              ) : (
+                <div className="space-y-2.5">
+                  {activeGoals.map((g) => {
+                    const pct = Math.min(100, goalPct(g))
+                    const overdue = bucketFor(g.deadline) === 'overdue'
+                    return (
+                      <div key={g.id}>
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span className="text-xs text-zinc-400 truncate">{g.title}</span>
+                          <span className="text-[10px] text-zinc-500 tabular-nums shrink-0">
+                            {g.current_progress}/{g.target}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                          <span
+                            className={`text-[10px] tracking-wider tabular-nums ${
+                              overdue ? 'text-rose-400' : 'text-zinc-600'
+                            }`}
+                          >
+                            {formatDeadline(g.deadline)}
+                          </span>
+                        </div>
+                        <div className="h-0.5 bg-slate-800 relative overflow-hidden">
+                          <div
+                            className="absolute left-0 top-0 h-full bg-accent transition-all duration-300"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
 
               <Link
-                href="/insights"
-                className="text-[10px] text-zinc-700 hover:text-accent transition-colors tracking-widest"
+                href="/goals"
+                className="mt-4 block text-[10px] text-zinc-700 hover:text-accent transition-colors tracking-widest"
               >
-                OPEN INSIGHTS →
+                + NEW GOAL
               </Link>
             </div>
           </Card>
 
-          {/* Upcoming (calendar) */}
-          <UpcomingCard />
+          {/* Journal */}
+          <Card
+            number="08"
+            label="JOURNAL"
+            action={
+              <Link
+                href="/journal"
+                className="text-[10px] text-zinc-600 hover:text-zinc-300 tracking-widest transition-colors"
+              >
+                OPEN →
+              </Link>
+            }
+          >
+            <div>
+              <div className="flex items-baseline gap-2 mb-4">
+                <span className="text-3xl text-zinc-100 tabular-nums">
+                  {journalCount ?? 0}
+                </span>
+                <span className="text-[10px] text-zinc-600">ENTRIES</span>
+              </div>
+              {lastEntry ? (
+                <div>
+                  <p className="text-[10px] text-zinc-600 mb-1 tracking-wider">LAST ENTRY</p>
+                  <p className="text-xs text-zinc-400">
+                    {new Date(lastEntry.timestamp).toLocaleDateString('en-GB', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: '2-digit',
+                    })}
+                    {lastEntry.rating !== null && (
+                      <span className="text-accent ml-2">· {lastEntry.rating}/10</span>
+                    )}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-xs text-zinc-700">Start with one.</p>
+              )}
+              <Link
+                href="/journal"
+                className="mt-5 block text-[10px] text-zinc-700 hover:text-accent transition-colors tracking-widest"
+              >
+                + NEW ENTRY
+              </Link>
+            </div>
+          </Card>
         </div>
       </main>
     </div>
