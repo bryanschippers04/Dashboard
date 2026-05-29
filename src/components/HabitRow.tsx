@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useEffect, useState, useTransition, type CSSProperties, type ReactNode, type Ref } from 'react'
 import { Check, Minus, Plus, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import type { Cadence } from '@/lib/habits'
@@ -18,9 +18,15 @@ export interface HabitRowData {
 export default function HabitRow({
   habit,
   compact = false,
+  dragHandle,
+  outerRef,
+  outerStyle,
 }: {
   habit: HabitRowData
   compact?: boolean
+  dragHandle?: ReactNode
+  outerRef?: Ref<HTMLLIElement>
+  outerStyle?: CSSProperties
 }) {
   const router = useRouter()
   const [deleting, setDeleting] = useState(false)
@@ -60,10 +66,13 @@ export default function HabitRow({
 
   return (
     <li
+      ref={outerRef}
+      style={outerStyle}
       className={`flex items-center gap-2 border border-slate-800 bg-[#0a1830] pl-1 pr-2 transition-opacity ${
         deleting ? 'opacity-50' : ''
       }`}
     >
+      {dragHandle}
       {isBinary ? (
         <button
           type="button"

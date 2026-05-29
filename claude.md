@@ -48,6 +48,7 @@ All RLS enabled. Service-role-only tables have no client policies; the server us
 15\. \`calendar\_events\` \- id, user\_id, google\_event\_id, calendar\_id ('primary'), summary, description, start\_at, end\_at, all\_day, location, status, synced\_at. Cached event copies pulled by \`/api/calendar/sync\` covering last 7d + next 30d. Unique on (user\_id, google\_event\_id). Read by the insights pipeline via \`getEventsInRange()\` so Claude can correlate mood × spending × schedule. **RLS: client SELECT only; service-role writes.**  
 16\. \`habits\` \- id, user\_id, title, cadence ('daily'/'weekly'/'monthly'), target\_count (>=1), active, sort\_order, created\_at. Recurring expectations distinct from todos (one-shot) and goals (count targets). **RLS: client read/write own row.**  
 17\. \`habit\_completions\` \- id, habit\_id (FK), user\_id, period\_key ('YYYY-MM-DD' / 'YYYY-Www' / 'YYYY-MM'), occurred\_at. One row per tick. Streak = count of contiguous periods where count(period\_key) ≥ target\_count. **RLS: client read/write own row.**  
+18\. \`notes\` \- id, user\_id, text (>0 chars), created\_at. Quick "notes to self" — ideas, things to check out, gift hints. Plain text; no done/archive state yet. Created from the home Notes card (slot 05), the /notes page, or by the assistant via the \`create\_note\` tool. **RLS: client read/write own row.**  
 13\. \`screen\_time\` \- id, user\_id, duration\_minutes, app\_name, date. Not yet used (Day 6).
 
 Note: there is no \`public.users\` table. Foreign keys point at \`auth.users\` directly.
@@ -59,7 +60,8 @@ Note: there is no \`public.users\` table. Foreign keys point at \`auth.users\` d
 Journal: POST/GET/DELETE /api/journal — POST runs the raw text through Claude (\`compactJournal\`) and stores both text \+ text\_compact, plus an api\_usage row.  
 Todos: POST/GET/PATCH/DELETE /api/todos  
 Goals: POST/GET/PATCH/DELETE /api/goals  
-Habits: GET/POST /api/habits, PATCH/DELETE /api/habits/\[id\], POST/DELETE /api/habits/\[id\]/tick (tick = log completion in current period; DELETE = untick most recent in current period)  
+Habits: GET/POST /api/habits, PATCH/DELETE /api/habits/\[id\], POST/DELETE /api/habits/\[id\]/tick (tick = log completion in current period; DELETE = untick most recent in current period), POST /api/habits/reorder (body \`{ ids: string\[\] }\`; rewrites \`sort_order\` to \`(i+1)*10\` for the ids in order — used by drag-and-drop on /habits). New habits get \`sort_order = max(sort_order) + 10\` on create so they land at the bottom.  
+Notes: GET/POST /api/notes, DELETE /api/notes/\[id\]. POST body \`{ text }\`. Used by the home Notes card (inline + button), the /notes page, and the assistant via \`create\_note\` / \`list\_notes\` tools.  
 Finance \- connect: POST /api/finance/connect (starts Enable Banking authorisation)  
 Finance \- callback: GET /api/finance/callback (handles redirect from bank consent)  
 Finance \- sync: POST /api/finance/sync (pulls last 90d transactions per linked account)  
@@ -108,7 +110,8 @@ GMAIL\_CLIENT\_SECRET (later)
 \- /login       email/password sign-in / sign-up  
 \- /journal     voice journal entries  
 \- /todos       to-do CRUD \+ progress  
-\- /habits      daily / weekly / monthly sections; adaptive UI (checkbox when target=1, counter when target>1); streak badge; per-period completion logging via \`habit\_completions\`  
+\- /habits      daily / weekly / monthly sections; adaptive UI (checkbox when target=1, counter when target>1); streak badge; per-period completion logging via \`habit\_completions\`; drag-and-drop reorder per section via \`@dnd-kit\`  
+\- /notes       quick-capture notes-to-self; newest-first list, add via top input, delete inline. Mirrors what the home Notes card (slot 05) shows.  
 \- /goals       three sections (daily/weekly/monthly) with \+/− quick increment  
 \- /finance     transactions, week/month spend tiles, 14-day bar chart, category breakdown (7d/30d/6mo/1y/all switcher), manual accounts, vaste lasten panel  
 \- /insights    starred library at top, weekly groups below with per-week distillation and daily insights interleaved; manual generate buttons for daily \+ weekly  

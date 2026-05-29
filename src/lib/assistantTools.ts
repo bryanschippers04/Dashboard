@@ -555,6 +555,58 @@ const createHabit: ToolEntry = {
   },
 }
 
+// ---------- Notes to self ----------
+
+const createNote: ToolEntry = {
+  name: 'create_note',
+  description:
+    'Save a quick "note to self" — an idea, link to check out, gift hint, anything the user wants pinned briefly. Use the user\'s exact wording. Distinct from todos (no action needed) and journal entries (no reflection structure).',
+  input_schema: {
+    type: 'object',
+    required: ['text'],
+    properties: {
+      text: { type: 'string', description: 'The note content.' },
+    },
+  },
+  async execute(input, { admin, userId }) {
+    const text = typeof input.text === 'string' ? input.text.trim() : ''
+    if (!text) throw new Error('text is required')
+    const { data, error } = await admin
+      .from('notes')
+      .insert({ user_id: userId, text })
+      .select('id, text, created_at')
+      .single()
+    if (error) throw new Error(error.message)
+    return { created: data }
+  },
+}
+
+const listNotes: ToolEntry = {
+  name: 'list_notes',
+  description:
+    'List the user\'s recent notes-to-self. Use when asked "what notes have I saved" or to find one before deleting.',
+  input_schema: {
+    type: 'object',
+    properties: {
+      limit: {
+        type: 'number',
+        description: 'Max notes to return (newest first). Default 20.',
+      },
+    },
+  },
+  async execute(input, { admin, userId }) {
+    const limit = typeof input.limit === 'number' ? input.limit : 20
+    const { data, error } = await admin
+      .from('notes')
+      .select('id, text, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+    if (error) throw new Error(error.message)
+    return { notes: data ?? [] }
+  },
+}
+
 // ---------- Insights memory (read) ----------
 
 const recallStarredInsights: ToolEntry = {
@@ -587,6 +639,8 @@ export const TOOLS: ToolEntry[] = [
   untickHabit,
   createHabit,
   createJournalEntry,
+  createNote,
+  listNotes,
   queryRecentSpending,
   listUpcomingEvents,
   createCalendarEventTool,

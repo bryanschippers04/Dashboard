@@ -10,6 +10,7 @@ const navItems = [
   { href: '/journal', label: 'JOURNAL' },
   { href: '/todos', label: 'TODOS' },
   { href: '/habits', label: 'HABITS' },
+  { href: '/notes', label: 'NOTES' },
   { href: '/goals', label: 'GOALS' },
   { href: '/finance', label: 'FINANCE' },
   { href: '/insights', label: 'INSIGHTS' },

@@ -51,8 +51,8 @@ export default async function HabitsHomeCard() {
         {today.length === 0 ? (
           <p className="text-xs text-zinc-700">No daily habits yet.</p>
         ) : (
-          <ul className="flex flex-col gap-1.5">
-            {today.slice(0, 5).map((h: HabitRowData) => (
+          <ul className="flex flex-col gap-1.5 max-h-64 overflow-y-auto pr-1">
+            {today.map((h: HabitRowData) => (
               <HabitRow key={h.id} habit={h} compact />
             ))}
           </ul>

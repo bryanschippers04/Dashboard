@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import TopNav from '@/components/TopNav'
 import HabitsForm from '@/components/HabitsForm'
-import HabitRow, { type HabitRowData } from '@/components/HabitRow'
+import SortableHabitList from '@/components/SortableHabitList'
+import type { HabitRowData } from '@/components/HabitRow'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { getHabitsWithProgress } from '@/lib/habitsServer'
@@ -67,11 +68,7 @@ export default async function HabitsPage() {
                     No {cadence} habits yet.
                   </p>
                 ) : (
-                  <ul className="flex flex-col gap-1.5">
-                    {items.map((h) => (
-                      <HabitRow key={h.id} habit={h} />
-                    ))}
-                  </ul>
+                  <SortableHabitList habits={items} />
                 )}
               </section>
             )

@@ -51,9 +51,18 @@ export async function POST(request: Request) {
       ? Math.floor(body.target_count)
       : 1
 
+  const { data: maxRow } = await supabase
+    .from('habits')
+    .select('sort_order')
+    .eq('user_id', user.id)
+    .order('sort_order', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const sort_order = ((maxRow?.sort_order as number | null) ?? 0) + 10
+
   const { data, error } = await supabase
     .from('habits')
-    .insert({ user_id: user.id, title, cadence, target_count })
+    .insert({ user_id: user.id, title, cadence, target_count, sort_order })
     .select('id, title, cadence, target_count, active, sort_order')
     .single()
   if (error) { console.error('habits query failed:', error.message); return NextResponse.json({ error: 'Database error' }, { status: 500 }) }

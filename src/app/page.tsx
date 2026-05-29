@@ -5,6 +5,8 @@ import HabitsHomeCard from '@/components/HabitsHomeCard'
 import UpcomingCard from '@/components/UpcomingCard'
 import AutoSync from '@/components/AutoSync'
 import Card from '@/components/Card'
+import FinanceSyncButton from '@/components/FinanceSyncButton'
+import NotesHomeCard, { type NoteRow } from '@/components/NotesHomeCard'
 import type { Goal } from '@/components/GoalList'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -52,6 +54,7 @@ export default async function DashboardPage() {
     { data: manualData },
     { data: latestSummary },
     { data: starredData },
+    { data: notesData },
   ] = await Promise.all([
     supabase
       .from('journal_entries')
@@ -105,6 +108,12 @@ export default async function DashboardPage() {
           .select('id, insight_type, title, body, content')
           .eq('user_id', user.id)
           .eq('is_starred', true)
+      : Promise.resolve({ data: [] }),
+    user
+      ? supabase
+          .from('notes')
+          .select('id, text, created_at')
+          .order('created_at', { ascending: false })
       : Promise.resolve({ data: [] }),
   ])
 
@@ -191,6 +200,8 @@ export default async function DashboardPage() {
     content: string | null
   }>
   const randomStarred = pickRandom(starredAll)
+
+  const notes = (notesData ?? []) as NoteRow[]
 
   const netWorth = manualRefs.reduce(
     (s, m) => s + derivedBalance(m, transactionRefs),
@@ -325,10 +336,8 @@ export default async function DashboardPage() {
             </div>
           </Card>
 
-          {/* Reserved slot — placeholder for a block to be built later */}
-          <Card number="05" label="—">
-            <p className="text-[10px] text-zinc-700 tracking-widest">RESERVED</p>
-          </Card>
+          {/* Notes to self */}
+          <NotesHomeCard initialNotes={notes} />
 
           {/* Finance */}
           <Card
@@ -415,12 +424,19 @@ export default async function DashboardPage() {
                     })}
                   </div>
                 )}
-                <Link
-                  href="/finance"
-                  className="mt-4 block text-[10px] text-zinc-700 hover:text-accent transition-colors tracking-widest"
-                >
-                  OPEN FINANCE →
-                </Link>
+                <div className="mt-4 flex items-center justify-between gap-2">
+                  {bankAccounts.length > 0 ? (
+                    <FinanceSyncButton lastSyncedAt={null} />
+                  ) : (
+                    <span />
+                  )}
+                  <Link
+                    href="/finance"
+                    className="text-[10px] text-zinc-700 hover:text-accent transition-colors tracking-widest"
+                  >
+                    OPEN FINANCE →
+                  </Link>
+                </div>
               </div>
             )}
           </Card>
