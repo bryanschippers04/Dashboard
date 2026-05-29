@@ -68,7 +68,7 @@ Finance \- sync: POST /api/finance/sync (pulls last 90d transactions per linked 
 Finance \- manual accounts: GET/POST/PATCH/DELETE /api/finance/manual-accounts  
 Finance \- recurring: GET/POST/PATCH/DELETE /api/finance/recurring  
 Insights \- weekly run (manual): POST /api/insights/run  
-Insights \- daily run (manual): POST /api/insights/daily  
+Insights \- daily run (manual): POST /api/insights/daily — optional body \`{ day: 'YYYY-MM-DD' }\` overrides the target day. Default target = \`entry\_date\` of the user's most recent journal entry (fallback: logical yesterday). All inputs (journal, transactions, calendar, habits, the \`day\` field shown to Claude) are scoped to that same day, so the run can be triggered at end-of-night right after journaling.  
 Insights \- cron (Vercel-only): GET/POST /api/insights/cron (Bearer-auth via CRON\_SECRET; reads owner from INSIGHTS\_OWNER\_USER\_ID)  
 Insights \- per-row: PATCH/DELETE /api/insights/\[id\] (PATCH body \`{ is\_starred: boolean }\`)  
 Usage: GET /api/usage (totals + per-endpoint breakdown, used by the gear-icon dropdown in TopNav)  

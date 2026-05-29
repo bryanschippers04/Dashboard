@@ -23,8 +23,12 @@ const CONFIG: Record<
 
 export default function GenerateInsightsButton({
   kind = 'weekly',
+  label,
+  successView,
 }: {
   kind?: InsightKind
+  label?: string
+  successView?: 'weekly' | 'daily'
 }) {
   const router = useRouter()
   const [busy, setBusy] = useState(false)
@@ -44,6 +48,7 @@ export default function GenerateInsightsButton({
         setBusy(false)
         return
       }
+      if (successView) router.push(`/insights?view=${successView}`)
       startTransition(() => router.refresh())
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed')
@@ -60,7 +65,7 @@ export default function GenerateInsightsButton({
         disabled={busy}
         className="border border-accent text-accent text-[10px] tracking-[0.2em] px-3 py-2 hover:bg-accent/10 transition-colors disabled:opacity-40"
       >
-        {busy ? cfg.busyLabel : cfg.label}
+        {busy ? cfg.busyLabel : (label ?? cfg.label)}
       </button>
       {error && <span className="text-[10px] text-red-400">{error}</span>}
     </div>

@@ -4,10 +4,7 @@
 
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { createAdminClient } from '@/lib/supabase/admin'
-import {
-  getLastWeekRange,
-  getYesterdayRange,
-} from '@/lib/dateRange'
+import { getLastWeekRange } from '@/lib/dateRange'
 import { logicalYesterday } from '@/lib/timezone'
 import { runWeeklyInsights } from '@/lib/runWeeklyInsights'
 import { runDailyInsights } from '@/lib/runDailyInsights'
@@ -187,16 +184,44 @@ export interface RunDailyOutcome {
   day: string
 }
 
+/**
+ * Default target day for daily insights: the entry_date of the user's
+ * most recent journal entry. Falls back to the logical yesterday when
+ * the journal is empty. Exported so the /insights page can show the
+ * resolved day in the button label.
+ */
+export async function resolveDailyTargetDay(
+  admin: Admin,
+  userId: string
+): Promise<string> {
+  const { data } = await admin
+    .from('journal_entries')
+    .select('entry_date')
+    .eq('user_id', userId)
+    .not('entry_date', 'is', null)
+    .order('entry_date', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const entryDate = (data as { entry_date: string | null } | null)?.entry_date
+  return entryDate ?? logicalYesterday()
+}
+
 export async function runAndStoreDaily(
   userId: string,
-  endpoint: string = '/api/insights/daily'
+  endpoint: string = '/api/insights/daily',
+  opts: { day?: string } = {}
 ): Promise<RunDailyOutcome> {
   const admin = createAdminClient()
-  const { start, end } = getYesterdayRange()
-  // Journal bucketing honors the 4 AM cutoff via entry_date; the
-  // surrounding queries (transactions, calendar) keep using the UTC
-  // yesterday window — they're not affected by late-night writes.
-  const day = logicalYesterday()
+  const day = opts.day ?? (await resolveDailyTargetDay(admin, userId))
+
+  // All inputs are scoped to the target day so Claude sees a coherent
+  // picture — journal + transactions + habits + calendar all from that
+  // same day, regardless of when the run is triggered.
+  const dayStart = new Date(day + 'T00:00:00Z')
+  const dayEnd = new Date(day + 'T23:59:59.999Z')
+  // Habit progress as of ~noon NL on the target day (past the 4 AM
+  // cutoff, so logicalDateFor === day inside currentPeriodKey).
+  const habitReference = new Date(day + 'T10:00:00Z')
 
   const [journalRes, txRes, goalsRes, memory, calendarEvents, prefs, habits] =
     await Promise.all([
@@ -218,14 +243,14 @@ export async function runAndStoreDaily(
         .select('title, deadline, target, current_progress')
         .eq('user_id', userId),
       getInsightsMemory(admin, userId),
-      getEventsInRange(userId, start, end).catch(() => []),
+      getEventsInRange(userId, dayStart, dayEnd).catch(() => []),
       getUserModelOverrides(admin, userId),
-      getHabitsWithProgress(admin, userId).catch(() => []),
+      getHabitsWithProgress(admin, userId, habitReference).catch(() => []),
     ])
 
   const { insights, usage } = await runDailyInsights(
     {
-      day: start,
+      day: habitReference,
       journalEntries: journalRes.data ?? [],
       transactions: (txRes.data ?? []) as Array<{
         amount: number

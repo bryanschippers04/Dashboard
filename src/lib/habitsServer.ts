@@ -29,7 +29,8 @@ export interface HabitWithProgress extends HabitRow {
  */
 export async function getHabitsWithProgress(
   admin: SupabaseClient,
-  userId: string
+  userId: string,
+  now: Date = new Date()
 ): Promise<HabitWithProgress[]> {
   const [habitsRes, completionsRes] = await Promise.all([
     admin
@@ -64,7 +65,6 @@ export async function getHabitsWithProgress(
     inner.set(c.period_key, (inner.get(c.period_key) ?? 0) + 1)
   }
 
-  const now = new Date()
   return habits.map((h) => {
     const inner = byHabit.get(h.id) ?? new Map<string, number>()
     const currentKey = currentPeriodKey(h.cadence, now)

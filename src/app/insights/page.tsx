@@ -7,6 +7,7 @@ import InsightsViewToggle, {
 } from '@/components/InsightsViewToggle'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { resolveDailyTargetDay } from '@/lib/insightsServer'
 
 interface InsightRow extends InsightCardRow {
   week_start: string | null
@@ -32,7 +33,7 @@ export default async function InsightsPage({
   } = await supabase.auth.getUser()
 
   const admin = createAdminClient()
-  const [insightsRes, summariesRes] = user
+  const [insightsRes, summariesRes, dailyTargetDay] = user
     ? await Promise.all([
         admin
           .from('insights')
@@ -46,8 +47,13 @@ export default async function InsightsPage({
           .select('week_start, summary')
           .eq('user_id', user.id)
           .order('week_start', { ascending: false }),
+        resolveDailyTargetDay(admin, user.id),
       ])
-    : [{ data: [] as InsightRow[] }, { data: [] as SummaryRow[] }]
+    : [
+        { data: [] as InsightRow[] },
+        { data: [] as SummaryRow[] },
+        null as string | null,
+      ]
 
   const rows = (insightsRes.data ?? []) as InsightRow[]
   const summaries = (summariesRes.data ?? []) as SummaryRow[]
@@ -82,12 +88,21 @@ export default async function InsightsPage({
         </div>
 
         <div className="mb-6 flex flex-wrap items-center gap-2">
-          <GenerateInsightsButton kind="daily" />
-          <GenerateInsightsButton kind="weekly" />
+          <GenerateInsightsButton
+            kind="daily"
+            label={
+              dailyTargetDay
+                ? `+ DAILY · ${formatDailyButtonLabel(dailyTargetDay)}`
+                : undefined
+            }
+            successView="daily"
+          />
+          <GenerateInsightsButton kind="weekly" successView="weekly" />
         </div>
         <p className="text-[10px] text-zinc-600 mb-8 tracking-wider">
-          Daily covers yesterday. Weekly covers last Mon–Sun and also runs
-          automatically every Sunday night.
+          Daily covers the day of your most recent journal entry. Weekly
+          covers last Mon–Sun and also runs automatically every Sunday
+          night.
         </p>
 
         {starred.length > 0 && (
@@ -222,6 +237,17 @@ function formatWeek(weekStart: string | null): string {
       timeZone: 'UTC',
     })
   return `${fmt(start)} – ${fmt(end)}`
+}
+
+function formatDailyButtonLabel(day: string): string {
+  const d = new Date(day + 'T00:00:00Z')
+  return d
+    .toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      timeZone: 'UTC',
+    })
+    .toUpperCase()
 }
 
 function formatDayHeader(day: string): string {
