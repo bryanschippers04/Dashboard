@@ -5,6 +5,7 @@ import { compactJournal } from '@/lib/compactJournal'
 import { recordUsage } from '@/lib/usage'
 import { getUserModelOverrides } from '@/lib/models'
 import { hitRateLimit } from '@/lib/rateLimit'
+import { logicalDateFor } from '@/lib/timezone'
 
 export const maxDuration = 30
 
@@ -106,6 +107,7 @@ export async function POST(request: Request) {
           : null,
       time_outside: normalizedTimeOutside,
       phone_time_minutes: normalizedPhone,
+      entry_date: logicalDateFor(),
     })
     .select()
     .single()

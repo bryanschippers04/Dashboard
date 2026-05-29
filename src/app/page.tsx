@@ -61,7 +61,7 @@ export default async function DashboardPage() {
       .select('*', { count: 'exact', head: true }),
     supabase
       .from('journal_entries')
-      .select('timestamp, rating')
+      .select('timestamp, entry_date, rating')
       .order('timestamp', { ascending: false })
       .limit(1)
       .maybeSingle(),
@@ -538,7 +538,10 @@ export default async function DashboardPage() {
                 <div>
                   <p className="text-[10px] text-zinc-600 mb-1 tracking-wider">LAST ENTRY</p>
                   <p className="text-xs text-zinc-400">
-                    {new Date(lastEntry.timestamp).toLocaleDateString('en-GB', {
+                    {new Date(
+                      (lastEntry.entry_date ?? lastEntry.timestamp.slice(0, 10)) +
+                        'T00:00:00'
+                    ).toLocaleDateString('en-GB', {
                       day: '2-digit',
                       month: 'short',
                       year: '2-digit',

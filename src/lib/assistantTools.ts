@@ -9,6 +9,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { createAndCacheEvent, getEventsInRange } from './calendarServer'
 import { getHabitsWithProgress } from './habitsServer'
 import { currentPeriodKey, type Cadence } from './habits'
+import { logicalDateFor } from './timezone'
 
 export interface ToolExecutorCtx {
   userId: string
@@ -231,6 +232,7 @@ const createJournalEntry: ToolEntry = {
         text,
         rating,
         mood_tags: moodTags && moodTags.length > 0 ? moodTags : null,
+        entry_date: logicalDateFor(),
       })
       .select('id')
       .single()

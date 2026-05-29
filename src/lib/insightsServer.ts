@@ -8,6 +8,7 @@ import {
   getLastWeekRange,
   getYesterdayRange,
 } from '@/lib/dateRange'
+import { logicalYesterday } from '@/lib/timezone'
 import { runWeeklyInsights } from '@/lib/runWeeklyInsights'
 import { runDailyInsights } from '@/lib/runDailyInsights'
 import type { MemoryInput } from '@/lib/aggregateWeek'
@@ -192,7 +193,10 @@ export async function runAndStoreDaily(
 ): Promise<RunDailyOutcome> {
   const admin = createAdminClient()
   const { start, end } = getYesterdayRange()
-  const day = start.toISOString().slice(0, 10)
+  // Journal bucketing honors the 4 AM cutoff via entry_date; the
+  // surrounding queries (transactions, calendar) keep using the UTC
+  // yesterday window — they're not affected by late-night writes.
+  const day = logicalYesterday()
 
   const [journalRes, txRes, goalsRes, memory, calendarEvents, prefs, habits] =
     await Promise.all([
@@ -202,8 +206,7 @@ export async function runAndStoreDaily(
           'text, timestamp, rating, mood_tags, language, sleep_minutes, energy, productivity, exercise, time_outside, phone_time_minutes'
         )
         .eq('user_id', userId)
-        .gte('timestamp', start.toISOString())
-        .lte('timestamp', end.toISOString())
+        .eq('entry_date', day)
         .order('timestamp', { ascending: true }),
       admin
         .from('transactions')
