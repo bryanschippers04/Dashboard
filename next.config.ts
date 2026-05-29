@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next'
+import withBundleAnalyzer from '@next/bundle-analyzer'
 
 // Supabase host derived at runtime so CSP allows the project's
 // specific subdomain rather than `*.supabase.co`.
@@ -73,4 +74,8 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default nextConfig
+const bundleAnalyzer = withBundleAnalyzer({
+  enabled: process.env.ANALYZE === 'true',
+})
+
+export default bundleAnalyzer(nextConfig)

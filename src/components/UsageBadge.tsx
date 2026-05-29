@@ -55,8 +55,12 @@ export default function UsageBadge() {
   useEffect(() => {
     if (!open) return
     let cancelled = false
+    // Canonical fetch-on-open pattern: setState here synchronizes
+    // UI loading state with the open/closed external source.
+    /* eslint-disable react-hooks/set-state-in-effect */
     setLoading(true)
     setError(null)
+    /* eslint-enable react-hooks/set-state-in-effect */
     Promise.all([fetch('/api/usage'), fetch('/api/preferences')])
       .then(async ([usageRes, prefRes]) => {
         if (cancelled) return

@@ -26,7 +26,7 @@ export default function TopNav() {
     >
       <div className="h-12 flex items-center px-3 sm:px-4 gap-4 sm:gap-6">
         <span className="text-[11px] text-zinc-400 tracking-[0.3em] font-medium whitespace-nowrap select-none">
-          OS <span className="text-zinc-700">//</span> V0
+          OS <span className="text-zinc-700">{'//'}</span> V0
         </span>
 
         <div className="flex items-center gap-1 sm:gap-2 flex-1 overflow-x-auto scrollbar-none -mx-1">

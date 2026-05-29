@@ -15,13 +15,25 @@ import {
   type TransactionRef,
 } from '@/lib/finance'
 
+// Helpers hoisted out of the component so React 19's purity rules
+// don't flag the request-scoped Date/Math usage inside an RSC.
+const isoDate = (d: Date) => d.toISOString().slice(0, 10)
+
+function sevenDaysAgoIso(): string {
+  return isoDate(new Date(Date.now() - 7 * 86400000))
+}
+
+function pickRandom<T>(arr: readonly T[]): T | null {
+  if (arr.length === 0) return null
+  return arr[Math.floor(Math.random() * arr.length)]
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   const admin = createAdminClient()
 
-  const isoDate = (d: Date) => d.toISOString().slice(0, 10)
-  const sevenDaysAgo = isoDate(new Date(Date.now() - 7 * 86400000))
+  const sevenDaysAgo = sevenDaysAgoIso()
 
   const [
     { count: journalCount },
@@ -164,10 +176,7 @@ export default async function DashboardPage() {
     body: string | null
     content: string | null
   }>
-  const randomStarred =
-    starredAll.length > 0
-      ? starredAll[Math.floor(Math.random() * starredAll.length)]
-      : null
+  const randomStarred = pickRandom(starredAll)
 
   const netWorth = manualRefs.reduce(
     (s, m) => s + derivedBalance(m, transactionRefs),

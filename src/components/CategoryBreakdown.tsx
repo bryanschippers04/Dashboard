@@ -3,6 +3,14 @@
 import { useMemo, useState } from 'react'
 import type { Category } from '@/lib/categorize'
 
+// Capture "now" once at mount so re-renders triggered by range
+// changes (or React 19's strict purity rules) don't observe a
+// moving cutoff. The breakdown is a snapshot, not a ticker.
+function useToday(): string {
+  const [today] = useState(() => isoDate(new Date()))
+  return today
+}
+
 interface TxForBreakdown {
   amount: number
   category: string | null
@@ -63,15 +71,19 @@ export default function CategoryBreakdown({
   transactions: TxForBreakdown[]
 }) {
   const [range, setRange] = useState<RangeKey>('30D')
+  const today = useToday()
 
   const breakdown = useMemo(() => {
     const days = daysFor(range)
     const cutoff =
       days === null
         ? null
-        : isoDate(new Date(Date.now() - days * 86400000))
+        : isoDate(new Date(new Date(today + 'T00:00:00').getTime() - days * 86400000))
 
     const map = new Map<Category, number>()
+    // `today` is intentionally captured once at mount via useToday();
+    // a stale `today` here would only happen across midnight, which
+    // is fine for a snapshot tile.
     for (const t of transactions) {
       if (cutoff && t.date < cutoff) continue
       const cat = (t.category as Category) || 'other'
@@ -81,7 +93,7 @@ export default function CategoryBreakdown({
     return Array.from(map.entries())
       .map(([category, total]) => ({ category, total }))
       .sort((a, b) => b.total - a.total)
-  }, [transactions, range])
+  }, [transactions, range, today])
 
   const max = Math.max(1, ...breakdown.map((b) => b.total))
 

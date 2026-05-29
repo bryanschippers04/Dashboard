@@ -7,7 +7,6 @@ import SpendBarChart, { type DailySpend } from '@/components/SpendBarChart'
 import CategoryBreakdown from '@/components/CategoryBreakdown'
 import ManualAccountsSection, { type ManualAccount } from '@/components/ManualAccountsSection'
 import VasteLastenPanel from '@/components/VasteLastenPanel'
-import type { Category } from '@/lib/categorize'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import {

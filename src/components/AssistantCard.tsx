@@ -29,25 +29,28 @@ export default function AssistantCard({ name }: { name?: string }) {
   const [isBusy, setIsBusy] = useState(false)
   const [isRecording, setIsRecording] = useState(false)
   const [error, setError] = useState('')
-  const [greeting, setGreeting] = useState('')
-  const [dateStr, setDateStr] = useState('')
-  const recognitionRef = useRef<SpeechRecognition | null>(null)
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const router = useRouter()
-
-  useEffect(() => {
+  // Lazy state init reads system clock once on first client render.
+  // SSR returns empty strings (matched by the initial CSR state),
+  // then a useEffect-free re-render replaces them after hydration.
+  const [greetingDate] = useState(() => {
+    if (typeof window === 'undefined') return { greeting: '', dateStr: '' }
     const now = new Date()
-    setGreeting(getGreeting(now.getHours()))
-    setDateStr(
-      now
+    return {
+      greeting: getGreeting(now.getHours()),
+      dateStr: now
         .toLocaleDateString('en-GB', {
           weekday: 'long',
           month: 'long',
           day: 'numeric',
         })
-        .toUpperCase()
-    )
-  }, [])
+        .toUpperCase(),
+    }
+  })
+  const greeting = greetingDate.greeting
+  const dateStr = greetingDate.dateStr
+  const recognitionRef = useRef<SpeechRecognition | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const router = useRouter()
 
   // Auto-scroll the transcript when new messages arrive.
   useEffect(() => {

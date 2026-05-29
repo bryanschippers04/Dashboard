@@ -13,7 +13,7 @@ export default function PrivacyPage() {
       <main className="app-page-top px-3 pb-12 md:px-5 max-w-3xl mx-auto">
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-[10px] text-zinc-600 tracking-widest">// </span>
+            <span className="text-[10px] text-zinc-600 tracking-widest">{'// '}</span>
             <span className="text-[10px] text-zinc-500 tracking-[0.2em]">PRIVACY</span>
           </div>
           <div className="flex items-center justify-between">

@@ -36,7 +36,10 @@ export async function runDailyInsights(
   }
   // Daily prompt forbids verses; strip any that slipped through.
   const insights = validateInsightArray(data).map(
-    ({ verse: _v, ...rest }) => rest as Insight
+    ({ verse: _verse, ...rest }) => {
+      void _verse
+      return rest as Insight
+    }
   )
   return { insights, usage }
 }

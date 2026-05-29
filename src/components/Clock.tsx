@@ -7,6 +7,8 @@ export default function Clock() {
   const [date, setDate] = useState('')
 
   useEffect(() => {
+    // setState here syncs to an external source (system clock).
+    // SSR can't render real-time without hydration mismatch.
     function update() {
       const now = new Date()
       setTime(
